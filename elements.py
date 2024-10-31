@@ -119,8 +119,14 @@ class Injector:
 class Environment:
     R = 8.3143                      # Universal Gas Constant [J/(mol*K)]
     atmosphericPressure = 101325    # Atmospheric Pressure [Pa]
-    def __init__(self, temperature: float):
+    MWair = 0.0289652               # Molecular weight air [kg/mol]
+
+    def __init__(self, temperature: float, pressure=atmosphericPressure):
         self.T = temperature # Ambient Temperature [K]
+        self.pressure = pressure
+    
+    def GetAirDensity(self):
+        return self.pressure*self.MWair/(self.R*self.T)
 
 class Aluminum:
     A = [4.8, 0.00322, 155.239]
@@ -139,6 +145,8 @@ class Grain:
         self.internalDiameter = internalDiameter    # Grain hole diameter (assumes circular profile) [m]
         self.externalDiameter = externalDiameter    # Grain external diameter [m]
         self.length = length                        # Grain length [m]
+
+        self.volumeVariation = 0
 
     def AddInternalDiameterVariation(self, internalDiameterVariation: float):
         self.internalDiameter = self.internalDiameter + internalDiameterVariation
@@ -181,6 +189,7 @@ class Nozzle:
         self.entryArea = entryArea
 
         self.superAreaRatio = self.exitArea/self.throatArea
+        self.massFlowNozzle = 0
 
     def GetConvergentSectionInternalVolume(self) -> float:
         chamberRadius = np.sqrt(self.entryArea/np.pi)
@@ -194,6 +203,9 @@ class Chamber:
         self.preCombustorLength = preCombustorLength
         self.pressure = pressure
 
+        self.instantMassGenerationRate = 0
+        self.instantOF = 0
+
     def GetChamberInternalVolume(self, grain: Grain) -> float:
         return self.transversalArea * (self.postCombustorLength + self.preCombustorLength) + grain.length * np.pi * (grain.internalDiameter ** 2) / 4
 
@@ -206,6 +218,12 @@ class RocketEngine:
         self.nozzle = nozzle
         self.grain = grain
         self.chamber = chamber
+
+        self.instantMDotOut = 0
+        self.instantCStar = 0
+        self.instantIsp = 0
+        self.I = 0
+        self.gasMass = self.GetEngineInternalVolume()*Environment.GetAirDensity()
 
     # Engine internal volume for burn gases in the combustion chamber [m^3]
     def GetEngineInternalVolume(self):

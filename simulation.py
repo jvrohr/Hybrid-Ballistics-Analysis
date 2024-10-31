@@ -3,10 +3,17 @@ from typing import List
 import rocketcea.cea_obj as cea
 from elements import *
 
+paraffinInputString = """
+    fuel paraffin(S)  C 73.0   H 124.0     wt%=100.00
+    h,cal=-444694.0724016     t(k)=298.15   rho=1.001766
+    """
+cea.add_new_fuel('Paraffin', paraffinInputString)
+
 class SimulationParameters:
-    def __init__(self, environment: Environment, timeStep: float):
+    def __init__(self, environment: Environment, timeStep: float, totalTime: float):
         self.environment = environment
         self.timeStep = timeStep
+        self.totalTime = totalTime
 
 class SolveSimulation:
     resultsDict = {}
@@ -18,6 +25,7 @@ class SolveSimulation:
         self.deltaTemperature = 0
         self.deltaNGaseous = 0
         self.deltaNLiquid = 0
+        self.deltaPressure = 0
 
     def SaveResultsBlowdown(self, time: float):
         tank = self.rocketEngine.tank
@@ -28,8 +36,8 @@ class SolveSimulation:
         self.resultsDict["Quantity Liquid"].append(tank.quantityLiquid)
 
     def RunBlowDown(self):
-        deltat = 0.01
-        time = 5
+        deltat = self.simulationParameters.timeStep
+        time = self.simulationParameters.totalTime
 
         # Initialize the results dict structure
         self.resultsDict["Time"] = []
@@ -40,10 +48,10 @@ class SolveSimulation:
         tank = self.rocketEngine.tank
 
         for i in np.arange(0, time, deltat):
-            self.UpdateBlowdown()
+            self.UpdateOxidizerBlowdown()
             self.SaveResultsBlowdown(i)
 
-    def UpdateBlowdown(self):
+    def UpdateOxidizerBlowdown(self):
         tank = self.rocketEngine.tank
         deltat = self.simulationParameters.timeStep
 
@@ -54,44 +62,59 @@ class SolveSimulation:
         tank.AddMolarQuantityLiquidVariation(self.deltaNLiquid*deltat)
 
     def RunBurn(self):
-        deltat = 0.01
-        time = 5
+        deltat = self.simulationParameters.timeStep
+        time = self.simulationParameters.totalTime
 
         tank = self.rocketEngine.tank
 
         for i in np.arange(0, time, deltat):
-            self.UpdateBlowdown()
+            self.UpdateOxidizerBlowdown()
 
-            self.UpdateBurn()
+            self.UpdateFuelRegression()
             self.RunCEA()
+            self.UpdateChamberPressure()
             self.SaveResultsBurn(i)
 
-    def AddParaffin():
-        paraffinInputString = """
-        fuel paraffin(S)  C 73.0   H 124.0     wt%=100.00
-        h,cal=-444694.0724016     t(k)=298.15   rho=1.001766
-        """
-        cea.add_new_fuel('Paraffin', paraffinInputString)
+    def UpdateChamberPressure(self):
+        self.rocketEngine.chamber.pressure = self.simulationParameters.timeStep*self.CalculateChamberPressureDerivative()
+
+    def CalculateChamberPressureDerivative(self):
+        nozzle = self.rocketEngine.nozzle
+        chamber = self.rocketEngine.chamber
+        grain = self.rocketEngine.grain
+
+        nozzle.massFlowNozzle = chamber.pressure*nozzle.throatArea/self.rocketEngine.instantCStar
+
+        massGain = chamber.instantMassGenerationRate - nozzle.massFlowNozzle
+
+        self.deltaPressure = chamber.pressure*(massGain/self.rocketEngine.gasMass - grain.volumeVariation/self.rocketEngine.GetEngineInternalVolume())
 
     def ConvertPa2Psia(pressurePa):
         return 0.000145038*pressurePa
 
+    def ConvertFts2Ms(velocity):
+        return velocity / 3.2808398950131
+
     def RunCEA(self) -> float:
-        self.AddParaffin()
+        chamber = self.rocketEngine.chamber
+        nozzle = self.rocketEngine.nozzle
 
         ceaObject = cea.CEA_Obj(oxName='N2O', fuelName='Paraffin')
 
         atmosphericPressurePsi = self.ConvertPa2Psia(Environment.atmosphericPressure)
-        chamberPressurePsi = self.ConvertPa2Psia(self.rocketEngine.chamber.pressure)
+        chamberPressurePsi = self.ConvertPa2Psia(chamber.pressure)
 
-        Cf = ceaObject.get_PambCf(Pamb=atmosphericPressurePsi, Pc=chamberPressurePsi, MR=1, eps=self.rocketEngine.nozzle.superAreaRatio)[1]
+        self.rocketEngine.instantCStar = self.ConvertFts2Ms(ceaObject.get_Cstar(Pc=chamberPressurePsi, \
+                                  MR=chamber.instantOF))
+        Cf = ceaObject.get_PambCf(Pamb=atmosphericPressurePsi, Pc=chamberPressurePsi, \
+                                  MR=chamber.instantOF, eps=nozzle.superAreaRatio)[1]
 
         # Pe = m_out * Cstar / At
         # Force = Cf * Pe * At
         # I = Force * tstep + I
         # Cstar = cstar(OF)
 
-    def UpdateBurn(self) -> List[float]:
+    def UpdateFuelRegression(self):
         tank = self.rocketEngine.tank
         fluid = tank.fluid
         injector = self.rocketEngine.injector
@@ -107,10 +130,13 @@ class SolveSimulation:
         oxidizerMassFlow = injector.GetMassFlow(fluid.pressure, chamber.pressure, phase, fluid)                 # [kg/s]
         oxidizerFlux = oxidizerMassFlow / (np.pi * (grain.internalDiameter / 2) ** 2)                           # [kg/m^2s]
         regretionRate = 1e-3 * grain.material.burnCoefficient * (oxidizerFlux ** grain.material.burnExponent)   # [m/s]
-        grain.AddInternalDiameterVariation(deltat * 2 * regretionRate)                                   # [m]
+        grain.AddInternalDiameterVariation(deltat * regretionRate*2)                                            # [m]
         fuelMassFlow = np.pi * grain.internalDiameter * grain.length * regretionRate * grain.material.density   # [kg/s]
 
-        return oxidizerMassFlow + fuelMassFlow, oxidizerMassFlow / fuelMassFlow # Total Mass Flow, OF ratio [kg/s, -]
+        grain.volumeVariation = np.pi*((grain.internalDiameter/2 + regretionRate*deltat)**2 - (grain.internalDiameter/2)**2)
+
+        chamber.instantOF = oxidizerMassFlow / fuelMassFlow # [-]
+        chamber.instantMassGenerationRate = oxidizerMassFlow + fuelMassFlow # [kg/s]
         
     # Returns
     # 0 -> derivative of nitrous oxide temperature
@@ -145,3 +171,6 @@ class SolveSimulation:
         self.deltaNGaseous = (-f * (-j * a + (q - k) * b)) / (a * (m + j) + (q - k) * (e - b))      # [mol/s]
         self.deltaNLiquid = (-self.deltaNGaseous * (m * a + (q - k) * e)) / (-j * a + (q - k) * b)  # [mol/s]
         self.deltaTemperature = (b * self.deltaNLiquid + e * self.deltaNGaseous) / a                # [K/s]
+
+def SaveResultsBurn(self):
+    pass
