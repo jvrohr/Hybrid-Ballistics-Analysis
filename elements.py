@@ -1,7 +1,7 @@
 import numpy as np
-import scipy as scp
 from enum import Enum
 from typing import List
+import rocketcea.cea_obj as cea
 
 class Phase(Enum):
     LIQUID = "liquid"
@@ -193,7 +193,7 @@ class Chamber:
         return self.transversalArea * (self.postCombustorLength + self.preCombustorLength) + grain.length * np.pi * (grain.internalDiameter ** 2) / 4
 
 class RocketEngine:
-    burnEffectiveness  = 0.85 # Efficiency with which N2O and paraffin will mixture burn
+    burnEffectiveness  = 0.85 # Efficiency with which N2O and paraffin mixture will burn
 
     def __init__(self, injector: Injector, tank: Tank, nozzle: Nozzle, grain: Grain, chamber: Chamber):
         self.injector = injector
@@ -243,8 +243,25 @@ class SolveSimulation:
         # update burn model / grain size
         blabla = 1
 
+    def AddParaffin():
+        paraffinInputString = """
+        fuel paraffin(S)  C 73.0   H 124.0     wt%=100.00
+        h,cal=-444694.0724016     t(k)=298.15   rho=1.001766
+        """
+        cea.add_new_fuel('Paraffin', paraffinInputString)
+
+    def ConvertPa2Psia(pressurePa):
+        return 0.000145038*pressurePa
+
     def RunCEA(self) -> float:
-        
+        self.AddParaffin()
+
+        ceaObject = cea.CEA_Obj(oxName='N2O', fuelName='Paraffin')
+
+        atmosphericPressurePsi = self.ConvertPa2Psia(Environment.atmosphericPressure)
+        chamberPressurePsi = self.ConvertPa2Psia(self.rocketEngine.chamber.pressure)
+
+        Cf = ceaObject.get_PambCf(Pamb=atmosphericPressurePsi, Pc=chamberPressurePsi, MR=, eps=self.rocketEngine.nozzle.superAreaRatio)[1]
 
     # def UpdateBurn(self) -> float:
         
