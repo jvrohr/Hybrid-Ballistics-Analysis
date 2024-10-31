@@ -4,8 +4,9 @@ import rocketcea.cea_obj as cea
 from elements import *
 
 class SimulationParameters:
-    def __init__(self, environment: Environment):
+    def __init__(self, environment: Environment, timeStep: float):
         self.environment = environment
+        self.timeStep = timeStep
 
 class SolveSimulation:
     resultsDict = {}
@@ -13,6 +14,10 @@ class SolveSimulation:
     def __init__(self, rocketEngine: RocketEngine, simulationParameters: SimulationParameters):
         self.rocketEngine = rocketEngine
         self.simulationParameters = simulationParameters
+
+        self.deltaTemperature = 0
+        self.deltaNGaseous = 0
+        self.deltaNLiquid = 0
 
     def SaveResultsBlowdown(self, time: float):
         tank = self.rocketEngine.tank
@@ -35,25 +40,31 @@ class SolveSimulation:
         tank = self.rocketEngine.tank
 
         for i in np.arange(0, time, deltat):
-            [dT, dng, dnl] = self.CalculateTankDerivatives()
-
-            tank.fluid.AddTemperatureVariation(dT*deltat)
-            tank.AddMolarQuantityGaseousVariation(dng*deltat)
-            tank.AddMolarQuantityLiquidVariation(dnl*deltat)
-
+            self.UpdateBlowdown()
             self.SaveResultsBlowdown(i)
 
-    def RunBurn(self):
+    def UpdateBlowdown(self):
+        tank = self.rocketEngine.tank
+        deltat = self.simulationParameters.timeStep
+
         self.CalculateTankDerivatives()
 
-        self.RunCEA()
-        self.UpdateBurn()
-        self.SaveResults()
+        tank.fluid.AddTemperatureVariation(self.deltaTemperature*deltat)
+        tank.AddMolarQuantityGaseousVariation(self.deltaNGaseous*deltat)
+        tank.AddMolarQuantityLiquidVariation(self.deltaNLiquid*deltat)
 
-        # run tank sim
-        # run cea maybe
-        # update burn model / grain size
-        blabla = 1
+    def RunBurn(self):
+        deltat = 0.01
+        time = 5
+
+        tank = self.rocketEngine.tank
+
+        for i in np.arange(0, time, deltat):
+            self.UpdateBlowdown()
+
+            self.UpdateBurn()
+            self.RunCEA()
+            self.SaveResultsBurn(i)
 
     def AddParaffin():
         paraffinInputString = """
@@ -75,14 +86,37 @@ class SolveSimulation:
 
         Cf = ceaObject.get_PambCf(Pamb=atmosphericPressurePsi, Pc=chamberPressurePsi, MR=1, eps=self.rocketEngine.nozzle.superAreaRatio)[1]
 
-    # def UpdateBurn(self) -> float:
+        # Pe = m_out * Cstar / At
+        # Force = Cf * Pe * At
+        # I = Force * tstep + I
+        # Cstar = cstar(OF)
+
+    def UpdateBurn(self) -> List[float]:
+        tank = self.rocketEngine.tank
+        fluid = tank.fluid
+        injector = self.rocketEngine.injector
+        chamber = self.rocketEngine.chamber
+        grain = self.rocketEngine.grain
+        deltat = self.simulationParameters.timeStep
+
+        if(tank.quantityLiquid >= 0):
+            phase = Phase.LIQUID
+        else:
+            phase = Phase.GAS
+
+        oxidizerMassFlow = injector.GetMassFlow(fluid.pressure, chamber.pressure, phase, fluid)                 # [kg/s]
+        oxidizerFlux = oxidizerMassFlow / (np.pi * (grain.internalDiameter / 2) ** 2)                           # [kg/m^2s]
+        regretionRate = 1e-3 * grain.material.burnCoefficient * (oxidizerFlux ** grain.material.burnExponent)   # [m/s]
+        grain.AddInternalDiameterVariation(deltat * 2 * regretionRate)                                   # [m]
+        fuelMassFlow = np.pi * grain.internalDiameter * grain.length * regretionRate * grain.material.density   # [kg/s]
+
+        return oxidizerMassFlow + fuelMassFlow, oxidizerMassFlow / fuelMassFlow # Total Mass Flow, OF ratio [kg/s, -]
         
-        
-    # Returns 
+    # Returns
     # 0 -> derivative of nitrous oxide temperature
     # 1 -> derivative of the geseous molar quantity
     # 2 -> derivative of the liquid molar quantity
-    def CalculateTankDerivatives(self) -> List[float]:
+    def CalculateTankDerivatives(self) -> None:
         tank = self.rocketEngine.tank
         fluid = tank.fluid
         injector = self.rocketEngine.injector
@@ -93,17 +127,21 @@ class SolveSimulation:
         else:
             phase = Phase.GAS
 
-        P = tank.quantityGaseous * Environment.R * fluid.temperature / (tank.volume - tank.quantityLiquid * fluid.GetMolarVolumeLiquid()) # [J/m^3]
-        a = tank.tankMass * tank.GetSpecificHeatCPofTankMaterial(fluid.temperature) + tank.quantityGaseous * fluid.GetSpecificHeatCPGaseous() + tank.quantityLiquid * fluid.GetSpecificHeatCPLiquid() # [J/K]
-        b = P * fluid.GetMolarVolumeLiquid() # [J/mol]
-        e = - fluid.GetVaporizationHeat() + Environment.R * fluid.temperature # [J/mol]
-        f = - injector.GetFluidMassFlow(fluid.pressure, chamber.pressure, phase, fluid) / fluid.molecularMass # [mol/s]
-        j = - fluid.GetMolarVolumeLiquid() * fluid.GetVaporPressure() # [J/mol]
-        k = (tank.volume - tank.quantityLiquid * fluid.GetMolarVolumeLiquid()) * fluid.GetVaporPressureDerivTemp() # [J/K]
-        m = Environment.R * fluid.temperature # [J/mol]
-        q = Environment.R * tank.quantityGaseous # [J/K]
+        P = tank.quantityGaseous * Environment.R * fluid.temperature / \
+            (tank.volume - tank.quantityLiquid * fluid.GetMolarVolumeLiquid())          # [J/m^3]
+        a = tank.tankMass * tank.GetSpecificHeatCPofTankMaterial(fluid.temperature) + \
+            tank.quantityGaseous * fluid.GetSpecificHeatCPGaseous() + \
+                tank.quantityLiquid * fluid.GetSpecificHeatCPLiquid()                   # [J/K]
+        b = P * fluid.GetMolarVolumeLiquid()                                            # [J/mol]
+        e = - fluid.GetVaporizationHeat() + Environment.R * fluid.temperature           # [J/mol]
+        f = - injector.GetMassFlow(fluid.pressure, chamber.pressure, phase, fluid) / \
+            fluid.molecularMass                                                         # [mol/s]
+        j = - fluid.GetMolarVolumeLiquid() * fluid.GetVaporPressure()                   # [J/mol]
+        k = (tank.volume - tank.quantityLiquid * fluid.GetMolarVolumeLiquid()) * \
+            fluid.GetVaporPressureDerivTemp()                                           # [J/K]
+        m = Environment.R * fluid.temperature                                           # [J/mol]
+        q = Environment.R * tank.quantityGaseous                                        # [J/K]
 
-        Z = (-f * (-j * a + (q - k) * b)) / (a * (m + j) + (q - k) * (e - b)) # [mol/s]
-        W = (-Z * (m * a + (q - k) * e)) / (-j * a + (q - k) * b) # [mol/s]
-        
-        return [(b * W + e * Z) / a, Z, W] # [K/s, mol/s, mol/s]
+        self.deltaNGaseous = (-f * (-j * a + (q - k) * b)) / (a * (m + j) + (q - k) * (e - b))      # [mol/s]
+        self.deltaNLiquid = (-self.deltaNGaseous * (m * a + (q - k) * e)) / (-j * a + (q - k) * b)  # [mol/s]
+        self.deltaTemperature = (b * self.deltaNLiquid + e * self.deltaNGaseous) / a                # [K/s]

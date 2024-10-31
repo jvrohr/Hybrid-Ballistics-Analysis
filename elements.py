@@ -103,7 +103,7 @@ class Injector:
         return fluid.temperature/((upstreamPressure/downstreamPressure)**((gamma - 1)/gamma))
 
     # Mass of N2O liquid or gaseous flowing through the injector [kg/s]
-    def GetFluidMassFlow(self, upstreamPressure: float, downstreamPressure: float, phase: Phase, fluid: NitrousOxide):
+    def GetMassFlow(self, upstreamPressure: float, downstreamPressure: float, phase: Phase, fluid: NitrousOxide):
         if downstreamPressure >= upstreamPressure:
             return 0
         else:
@@ -134,11 +134,14 @@ class Paraffin:
     burnExponent = 0.61        # Exponent of the paraffin burn model [-]
 
 class Grain:
-    def __init__(self, material, length: float, internalDiameter: float, externalDiameter: float):
+    def __init__(self, material: Paraffin, length: float, internalDiameter: float, externalDiameter: float):
         self.material = material                    # Usually a Paraffin object
         self.internalDiameter = internalDiameter    # Grain hole diameter (assumes circular profile) [m]
         self.externalDiameter = externalDiameter    # Grain external diameter [m]
         self.length = length                        # Grain length [m]
+
+    def AddInternalDiameterVariation(self, internalDiameterVariation: float):
+        self.internalDiameter = self.internalDiameter + internalDiameterVariation
 
 class Tank:
     def __init__(self, material: Aluminum, fluid: NitrousOxide, environment: Environment, volume: float, tankMass: float, loadedFluidMass: float):
