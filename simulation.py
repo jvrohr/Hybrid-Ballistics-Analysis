@@ -2,6 +2,7 @@ import numpy as np
 from typing import List
 import rocketcea.cea_obj as cea
 from elements import *
+import matplotlib.pyplot as plt
 
 paraffinInputString = """
     fuel paraffin(S)  C 73.0   H 124.0     wt%=100.00
@@ -66,6 +67,8 @@ class SolveSimulation:
         # Initialize results dict structure
         self.resultsDict["Time"] = []
         self.resultsDict["Thrust"] = []
+        self.resultsDict["Pc"] = []
+        self.resultsDict["Pt"] = []
 
         for i in np.arange(0, time, deltat):
             self.UpdateOxidizerBlowdown()
@@ -74,8 +77,6 @@ class SolveSimulation:
             self.RunCEA()
             self.UpdateChamberPressure()
             self.SaveResultsBurn(i)
-        
-        print(self.resultsDict)
 
     def UpdateChamberPressure(self):
         self.CalculateChamberPressureDerivative()
@@ -87,8 +88,12 @@ class SolveSimulation:
         nozzle = self.rocketEngine.nozzle
         chamber = self.rocketEngine.chamber
         grain = self.rocketEngine.grain
+        environment = self.simulationParameters.environment
 
-        nozzle.massFlowNozzle = nozzle.dischargeCoefficient*chamber.pressure*nozzle.throatArea/self.rocketEngine.instantCStar
+        if(chamber.pressure - environment.atmosphericPressure > 0):
+            nozzle.massFlowNozzle = nozzle.dischargeCoefficient*chamber.pressure*nozzle.throatArea/self.rocketEngine.instantCStar
+        else:
+            nozzle.massFlowNozzle = 0
 
         massGain = chamber.instantMassGenerationRate - nozzle.massFlowNozzle
 
@@ -112,7 +117,6 @@ class SolveSimulation:
         atmosphericPressurePsi = self.ConvertPa2Psia(Environment.atmosphericPressure)
         chamberPressurePsi = self.ConvertPa2Psia(chamber.pressure)
 
-        print("OF = " + str(chamber.instantOF) + " ChamberPressurePsi = " + str(chamberPressurePsi))
         instantCStar =ceaObject.get_Cstar(Pc=chamberPressurePsi, \
                                   MR=chamber.instantOF)
         self.rocketEngine.instantCStar = self.ConvertFts2Ms(instantCStar)
@@ -140,7 +144,7 @@ class SolveSimulation:
         else:
             phase = Phase.GAS
 
-        oxidizerMassFlow = injector.GetMassFlow(fluid.pressure, chamber.pressure, phase, fluid)                 # [kg/s]
+        oxidizerMassFlow = injector.GetMassFlow(chamber.pressure, phase, fluid)                                 # [kg/s]
         oxidizerFlux = oxidizerMassFlow / (np.pi * (grain.internalDiameter / 2) ** 2)                           # [kg/m^2s]
         regretionRate = 1e-3 * grain.material.burnCoefficient * (oxidizerFlux ** grain.material.burnExponent)   # [m/s]
         grain.AddInternalDiameterVariation(deltat * regretionRate*2)                                            # [m]
@@ -160,31 +164,56 @@ class SolveSimulation:
         fluid = tank.fluid
         injector = self.rocketEngine.injector
         chamber = self.rocketEngine.chamber
+        environment = self.simulationParameters.environment
 
-        if(tank.quantityLiquid >= 0):
+        if(tank.quantityLiquid > 0):
             phase = Phase.LIQUID
         else:
+            tank.quantityLiquid = 0
+            fluid.Z = fluid.pressure * tank.volume / (fluid.temperature * environment.R * tank.quantityGaseous)
             phase = Phase.GAS
 
-        P = tank.quantityGaseous * Environment.R * fluid.temperature / \
-            (tank.volume - tank.quantityLiquid * fluid.GetMolarVolumeLiquid())          # [J/m^3]
+        fluid.pressure = fluid.Z * tank.quantityGaseous * environment.R * fluid.temperature / \
+            (tank.volume - tank.quantityLiquid * fluid.GetMolarVolumeLiquid())          # [Pa]
         a = tank.tankMass * tank.GetSpecificHeatCPofTankMaterial(fluid.temperature) + \
             tank.quantityGaseous * fluid.GetSpecificHeatCPGaseous() + \
                 tank.quantityLiquid * fluid.GetSpecificHeatCPLiquid()                   # [J/K]
-        b = P * fluid.GetMolarVolumeLiquid()                                            # [J/mol]
-        e = - fluid.GetVaporizationHeat() + Environment.R * fluid.temperature           # [J/mol]
-        f = - injector.GetMassFlow(fluid.pressure, chamber.pressure, phase, fluid) / \
+        b = fluid.pressure * fluid.GetMolarVolumeLiquid()                               # [J/mol]
+        e = - fluid.GetVaporizationHeat() + environment.R * fluid.temperature           # [J/mol]
+        f = - injector.GetMassFlow(chamber.pressure, phase, fluid) / \
             fluid.molecularMass                                                         # [mol/s]
         j = - fluid.GetMolarVolumeLiquid() * fluid.GetVaporPressure()                   # [J/mol]
         k = (tank.volume - tank.quantityLiquid * fluid.GetMolarVolumeLiquid()) * \
             fluid.GetVaporPressureDerivTemp()                                           # [J/K]
-        m = Environment.R * fluid.temperature                                           # [J/mol]
-        q = Environment.R * tank.quantityGaseous                                        # [J/K]
+        m = environment.R * fluid.temperature                                           # [J/mol]
+        q = environment.R * tank.quantityGaseous                                        # [J/K]
 
-        self.deltaNGaseous = (-f * (-j * a + (q - k) * b)) / (a * (m + j) + (q - k) * (e - b))      # [mol/s]
-        self.deltaNLiquid = (-self.deltaNGaseous * (m * a + (q - k) * e)) / (-j * a + (q - k) * b)  # [mol/s]
-        self.deltaTemperature = (b * self.deltaNLiquid + e * self.deltaNGaseous) / a                # [K/s]
+        if(phase == Phase.LIQUID):
+            self.deltaNGaseous = (-f * (-j * a + (q - k) * b)) / (a * (m + j) + (q - k) * (e - b))      # [mol/s]
+            self.deltaNLiquid = (-self.deltaNGaseous * (m * a + (q - k) * e)) / (-j * a + (q - k) * b)  # [mol/s] 
+        else:
+            self.deltaNGaseous = -f         # [mol/s]
+            self.deltaNLiquid = 0           # [mol/s]
+        
+        self.deltaTemperature = (b * self.deltaNLiquid + e * self.deltaNGaseous) / a
 
     def SaveResultsBurn(self, time):
         self.resultsDict["Time"].append(time)
         self.resultsDict["Thrust"].append(self.rocketEngine.thrust)
+        self.resultsDict["Pc"].append(self.rocketEngine.chamber.pressure)
+        self.resultsDict["Pt"].append(self.rocketEngine.tank.fluid.pressure)
+
+    def PlotResultsBurn(self):
+        time = self.resultsDict["Time"]
+        self.PlotData(time, self.resultsDict["Thrust"], "Thrust [N]", "")
+        self.PlotData(time, self.resultsDict["Pc"], "Chamber Pressure [Pa]", "")
+        self.PlotData(time, self.resultsDict["Pt"], "Tank Pressure [Pa]", "")
+
+    def PlotData(self, X, Y, ylabel, title, xlabel="Time [s]", show=True):
+        plt.plot(X, Y)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.grid()
+        plt.title(title)
+        if show:
+            plt.show()
