@@ -1,4 +1,4 @@
-from simulation import *
+from HBA import *
 import numpy as np
 
 envi = Environment(298)
@@ -14,8 +14,8 @@ engine = RocketEngine(injec, tank, noz, grain, chamber)
 simParams = SimulationParameters(envi, 0.01, 5)
 sim = SolveSimulation(engine, simParams)
 
-sim.RunBlowDown()
-sim.PlotResultsBlowdown()
+sim.Run("blowdown")
+sim.plot.PlotResultsBlowdown()
 
-sim.RunBurn()
-sim.PlotResultsBurn()
+sim.Run("burn")
+sim.plot.PlotResultsBurn()
