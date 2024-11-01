@@ -182,11 +182,12 @@ class Tank:
         self.quantityLiquid = self.quantityLiquid + quantityLiquidVariation
         
 class Nozzle:
-    def __init__(self, entryArea: float, exitArea: float, throatArea: float, convergentAngle: float):
+    def __init__(self, entryArea: float, exitArea: float, throatArea: float, convergentAngle: float, dischargeCoefficient: float):
         self.exitArea = exitArea
         self.throatArea = throatArea
         self.convergentAngle = convergentAngle
         self.entryArea = entryArea
+        self.dischargeCoefficient = dischargeCoefficient
 
         self.superAreaRatio = self.exitArea/self.throatArea
         self.massFlowNozzle = 0
@@ -206,6 +207,9 @@ class Chamber:
         self.instantMassGenerationRate = 0
         self.instantOF = 0
 
+    def AddChamberPressureVariation(self, pressureVariation):
+        self.pressure = self.pressure + pressureVariation
+
     def GetChamberInternalVolume(self, grain: Grain) -> float:
         return self.transversalArea * (self.postCombustorLength + self.preCombustorLength) + grain.length * np.pi * (grain.internalDiameter ** 2) / 4
 
@@ -223,8 +227,9 @@ class RocketEngine:
         self.instantCStar = 0
         self.instantIsp = 0
         self.I = 0
-        self.gasMass = self.GetEngineInternalVolume()*Environment.GetAirDensity()
+        self.thrust = 0
+        self.gasMass = 0
 
     # Engine internal volume for burn gases in the combustion chamber [m^3]
     def GetEngineInternalVolume(self):
-        return self.chamber.GetChamberInternalVolume() + self.nozzle.GetConvergentSectionInternalVolume()
+        return self.chamber.GetChamberInternalVolume(self.grain) + self.nozzle.GetConvergentSectionInternalVolume()

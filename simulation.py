@@ -45,8 +45,6 @@ class SolveSimulation:
         self.resultsDict["Quantity Gas"] = []
         self.resultsDict["Quantity Liquid"] = []
 
-        tank = self.rocketEngine.tank
-
         for i in np.arange(0, time, deltat):
             self.UpdateOxidizerBlowdown()
             self.SaveResultsBlowdown(i)
@@ -65,7 +63,9 @@ class SolveSimulation:
         deltat = self.simulationParameters.timeStep
         time = self.simulationParameters.totalTime
 
-        tank = self.rocketEngine.tank
+        # Initialize results dict structure
+        self.resultsDict["Time"] = []
+        self.resultsDict["Thrust"] = []
 
         for i in np.arange(0, time, deltat):
             self.UpdateOxidizerBlowdown()
@@ -74,26 +74,34 @@ class SolveSimulation:
             self.RunCEA()
             self.UpdateChamberPressure()
             self.SaveResultsBurn(i)
+        
+        print(self.resultsDict)
 
     def UpdateChamberPressure(self):
-        self.rocketEngine.chamber.pressure = self.simulationParameters.timeStep*self.CalculateChamberPressureDerivative()
+        self.CalculateChamberPressureDerivative()
+
+        deltat = self.simulationParameters.timeStep
+        self.rocketEngine.chamber.AddChamberPressureVariation(deltat*self.deltaPressure)
 
     def CalculateChamberPressureDerivative(self):
         nozzle = self.rocketEngine.nozzle
         chamber = self.rocketEngine.chamber
         grain = self.rocketEngine.grain
 
-        nozzle.massFlowNozzle = chamber.pressure*nozzle.throatArea/self.rocketEngine.instantCStar
+        nozzle.massFlowNozzle = nozzle.dischargeCoefficient*chamber.pressure*nozzle.throatArea/self.rocketEngine.instantCStar
 
         massGain = chamber.instantMassGenerationRate - nozzle.massFlowNozzle
 
         self.deltaPressure = chamber.pressure*(massGain/self.rocketEngine.gasMass - grain.volumeVariation/self.rocketEngine.GetEngineInternalVolume())
 
-    def ConvertPa2Psia(pressurePa):
+    def ConvertPa2Psia(self, pressurePa: float):
         return 0.000145038*pressurePa
 
-    def ConvertFts2Ms(velocity):
+    def ConvertFts2Ms(self, velocity: float):
         return velocity / 3.2808398950131
+    
+    def ConvertLbmFt32Kgm3(self, density: float):
+        return density*16.01846
 
     def RunCEA(self) -> float:
         chamber = self.rocketEngine.chamber
@@ -104,15 +112,20 @@ class SolveSimulation:
         atmosphericPressurePsi = self.ConvertPa2Psia(Environment.atmosphericPressure)
         chamberPressurePsi = self.ConvertPa2Psia(chamber.pressure)
 
-        self.rocketEngine.instantCStar = self.ConvertFts2Ms(ceaObject.get_Cstar(Pc=chamberPressurePsi, \
-                                  MR=chamber.instantOF))
+        print("OF = " + str(chamber.instantOF) + " ChamberPressurePsi = " + str(chamberPressurePsi))
+        instantCStar =ceaObject.get_Cstar(Pc=chamberPressurePsi, \
+                                  MR=chamber.instantOF)
+        self.rocketEngine.instantCStar = self.ConvertFts2Ms(instantCStar)
+
         Cf = ceaObject.get_PambCf(Pamb=atmosphericPressurePsi, Pc=chamberPressurePsi, \
                                   MR=chamber.instantOF, eps=nozzle.superAreaRatio)[1]
 
-        # Pe = m_out * Cstar / At
-        # Force = Cf * Pe * At
-        # I = Force * tstep + I
-        # Cstar = cstar(OF)
+        combustionGasDensity = ceaObject.get_Densities(\
+            Pc=chamberPressurePsi, MR=chamber.instantOF, eps=nozzle.superAreaRatio)[0]
+        combustionGasDensity = self.ConvertLbmFt32Kgm3(combustionGasDensity)
+
+        self.rocketEngine.gasMass = self.rocketEngine.GetEngineInternalVolume()*combustionGasDensity
+        self.rocketEngine.thrust = Cf*self.rocketEngine.chamber.pressure*self.rocketEngine.nozzle.throatArea
 
     def UpdateFuelRegression(self):
         tank = self.rocketEngine.tank
@@ -172,5 +185,6 @@ class SolveSimulation:
         self.deltaNLiquid = (-self.deltaNGaseous * (m * a + (q - k) * e)) / (-j * a + (q - k) * b)  # [mol/s]
         self.deltaTemperature = (b * self.deltaNLiquid + e * self.deltaNGaseous) / a                # [K/s]
 
-def SaveResultsBurn(self):
-    pass
+    def SaveResultsBurn(self, time):
+        self.resultsDict["Time"].append(time)
+        self.resultsDict["Thrust"].append(self.rocketEngine.thrust)
