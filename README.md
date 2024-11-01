@@ -4,5 +4,4 @@ Python code for simulating the internal ballistics of a hybrid rocket engine wit
 
 ## TODO
 
-- Plot results 
-- Debug the gas phase flow
+- Organize files

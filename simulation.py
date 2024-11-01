@@ -35,6 +35,7 @@ class SolveSimulation:
         self.resultsDict["Temperature"].append(tank.fluid.temperature)
         self.resultsDict["Quantity Gas"].append(tank.quantityGaseous)
         self.resultsDict["Quantity Liquid"].append(tank.quantityLiquid)
+        self.resultsDict["Pressure Tank"].append(tank.fluid.pressure)
 
     def RunBlowDown(self):
         deltat = self.simulationParameters.timeStep
@@ -45,6 +46,7 @@ class SolveSimulation:
         self.resultsDict["Temperature"] = []
         self.resultsDict["Quantity Gas"] = []
         self.resultsDict["Quantity Liquid"] = []
+        self.resultsDict["Pressure Tank"] = []
 
         for i in np.arange(0, time, deltat):
             self.UpdateOxidizerBlowdown()
@@ -67,8 +69,8 @@ class SolveSimulation:
         # Initialize results dict structure
         self.resultsDict["Time"] = []
         self.resultsDict["Thrust"] = []
-        self.resultsDict["Pc"] = []
-        self.resultsDict["Pt"] = []
+        self.resultsDict["Pressure Chamber"] = []
+        self.resultsDict["Pressure Tank"] = []
 
         for i in np.arange(0, time, deltat):
             self.UpdateOxidizerBlowdown()
@@ -200,14 +202,23 @@ class SolveSimulation:
     def SaveResultsBurn(self, time):
         self.resultsDict["Time"].append(time)
         self.resultsDict["Thrust"].append(self.rocketEngine.thrust)
-        self.resultsDict["Pc"].append(self.rocketEngine.chamber.pressure)
-        self.resultsDict["Pt"].append(self.rocketEngine.tank.fluid.pressure)
+        self.resultsDict["Pressure Chamber"].append(self.rocketEngine.chamber.pressure)
+        self.resultsDict["Pressure Tank"].append(self.rocketEngine.tank.fluid.pressure)
 
     def PlotResultsBurn(self):
+        title = "Hybrid Motor Burn Result"
         time = self.resultsDict["Time"]
-        self.PlotData(time, self.resultsDict["Thrust"], "Thrust [N]", "")
-        self.PlotData(time, self.resultsDict["Pc"], "Chamber Pressure [Pa]", "")
-        self.PlotData(time, self.resultsDict["Pt"], "Tank Pressure [Pa]", "")
+        self.PlotData(time, self.resultsDict["Thrust"], "Thrust [N]", title)
+        self.PlotData(time, [i/1e5 for i in self.resultsDict["Pressure Chamber"]], "Pressure Chamber [bar]", title)
+        self.PlotData(time, [i/1e5 for i in self.resultsDict["Pressure Tank"]], "Tank Pressure [bar]", title)
+
+    def PlotResultsBlowdown(self):
+        title = "Hybrid Motor Blowdown Result"
+        time = self.resultsDict["Time"]
+        self.PlotData(time, self.resultsDict["Temperature"], "Temperature [K]", title)
+        self.PlotData(time, self.resultsDict["Quantity Gas"], "Quantity Gas [mols]", title)
+        self.PlotData(time, self.resultsDict["Quantity Liquid"], "Quantity Liquid [mols]", title)
+        self.PlotData(time, [i/1e5 for i in self.resultsDict["Pressure Tank"]], "Tank Pressure [bar]", title)
 
     def PlotData(self, X, Y, ylabel, title, xlabel="Time [s]", show=True):
         plt.plot(X, Y)
