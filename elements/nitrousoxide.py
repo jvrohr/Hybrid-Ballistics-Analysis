@@ -38,6 +38,10 @@ class NitrousOxide:
     def SetPressure(self, pressure: float) -> None:
         self.pressure = pressure
 
+    def SetTemperature(self, temperature: float) -> None:
+        self.temperature = temperature
+        self.temperatureRatio = self.temperature/self.criticalTemperature
+
     # Molar volume of liquid N2O [m^3/mol]
     def GetMolarVolumeLiquid(self) -> float:
         return self.molecularMass/self.GetLiquidDensity()

@@ -49,21 +49,24 @@ class SolveSimulation:
         self.UpdateOxidizerBlowdown()
         self.SaveResultsBlowdown(time)
 
-    def SaveResultsBlowdown(self, time: float):
-        tank = self.rocketEngine.tank
-        
-        self.plot.resultsDict["Time"].append(time)
-        self.plot.resultsDict["Temperature"].append(tank.fluid.temperature)
-        self.plot.resultsDict["Quantity Gas"].append(tank.quantityGaseous)
-        self.plot.resultsDict["Quantity Liquid"].append(tank.quantityLiquid)
-        self.plot.resultsDict["Pressure Tank"].append(tank.fluid.pressure)
-
     def RunBurnIteration(self, time: float):
         self.UpdateOxidizerBlowdown()
         self.UpdateFuelRegression()
         self.RunCEA()
         self.UpdateChamberPressure()
         self.SaveResultsBurn(time)
+
+    def SaveResultsBlowdown(self, time: float):
+        tank = self.rocketEngine.tank
+        injector = self.rocketEngine.injector
+        
+        self.plot.resultsDict["Time"].append(time)
+        self.plot.resultsDict["Temperature"].append(tank.fluid.temperature)
+        self.plot.resultsDict["Quantity Gas"].append(tank.quantityGaseous)
+        self.plot.resultsDict["Quantity Liquid"].append(tank.quantityLiquid)
+        self.plot.resultsDict["Pressure Tank"].append(tank.fluid.pressure)
+        self.plot.resultsDict["Oxidizer Mass Flow"].append(injector.oxidizerMassFlow)
+        self.plot.resultsDict["Pressure Chamber"].append(self.rocketEngine.chamber.pressure)
 
     def UpdateOxidizerBlowdown(self):
         tank = self.rocketEngine.tank
@@ -89,6 +92,7 @@ class SolveSimulation:
             fluid.Z = fluid.pressure * tank.volume / (fluid.temperature * environment.R * tank.quantityGaseous)
             phase = Phase.GAS
 
+        injector.oxidizerMassFlow = injector.GetMassFlow(chamber.pressure, phase, fluid)
         fluid.pressure = fluid.Z * tank.quantityGaseous * environment.R * fluid.temperature / \
             (tank.volume - tank.quantityLiquid * fluid.GetMolarVolumeLiquid())          # [Pa]
         a = tank.tankMass * tank.GetSpecificHeatCPofTankMaterial(fluid.temperature) + \
@@ -96,8 +100,7 @@ class SolveSimulation:
                 tank.quantityLiquid * fluid.GetSpecificHeatCPLiquid()                   # [J/K]
         b = fluid.pressure * fluid.GetMolarVolumeLiquid()                               # [J/mol]
         e = - fluid.GetVaporizationHeat() + environment.R * fluid.temperature           # [J/mol]
-        f = - injector.GetMassFlow(chamber.pressure, phase, fluid) / \
-            fluid.molecularMass                                                         # [mol/s]
+        f = - injector.oxidizerMassFlow / fluid.molecularMass                                                         # [mol/s]
         j = - fluid.GetMolarVolumeLiquid() * fluid.GetVaporPressure()                   # [J/mol]
         k = (tank.volume - tank.quantityLiquid * fluid.GetMolarVolumeLiquid()) * \
             fluid.GetVaporPressureDerivTemp()                                           # [J/K]
@@ -115,7 +118,6 @@ class SolveSimulation:
 
     def UpdateFuelRegression(self):
         tank = self.rocketEngine.tank
-        fluid = tank.fluid
         injector = self.rocketEngine.injector
         chamber = self.rocketEngine.chamber
         grain = self.rocketEngine.grain
@@ -126,16 +128,15 @@ class SolveSimulation:
         else:
             phase = Phase.GAS
 
-        oxidizerMassFlow = injector.GetMassFlow(chamber.pressure, phase, fluid)                                 # [kg/s]
-        oxidizerFlux = oxidizerMassFlow / (np.pi * (grain.internalDiameter / 2) ** 2)                           # [kg/m^2s]
+        oxidizerFlux = injector.oxidizerMassFlow / (np.pi * (grain.internalDiameter / 2) ** 2)                           # [kg/m^2s]
         regretionRate = 1e-3 * grain.material.burnCoefficient * (oxidizerFlux ** grain.material.burnExponent)   # [m/s]
         grain.AddInternalDiameterVariation(deltat * regretionRate*2)                                            # [m]
         fuelMassFlow = np.pi * grain.internalDiameter * grain.length * regretionRate * grain.material.density   # [kg/s]
 
         grain.volumeVariation = np.pi*((grain.internalDiameter/2 + regretionRate*deltat)**2 - (grain.internalDiameter/2)**2)
 
-        chamber.instantOF = oxidizerMassFlow / fuelMassFlow # [-]
-        chamber.instantMassGenerationRate = oxidizerMassFlow + fuelMassFlow # [kg/s]
+        chamber.instantOF = injector.oxidizerMassFlow / fuelMassFlow # [-]
+        chamber.instantMassGenerationRate = injector.oxidizerMassFlow + fuelMassFlow # [kg/s]
 
     def RunCEA(self) -> float:
         chamber = self.rocketEngine.chamber

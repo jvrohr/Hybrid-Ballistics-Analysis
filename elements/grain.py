@@ -1,7 +1,7 @@
 class Paraffin:
     density = 800              # Paraffin's density [kg/m^3]
-    burnCoefficient = 0.098    # Linear term of the paraffin burn model [mm/s]
-    burnExponent = 0.61        # Exponent of the paraffin burn model [-]
+    burnCoefficient = 0.132 # 0.098    # Linear term of the paraffin burn model [mm/s]
+    burnExponent = 0.55 # 0.61        # Exponent of the paraffin burn model [-]
 
 class Grain:
     def __init__(self, material: Paraffin, length: float, internalDiameter: float, externalDiameter: float):
