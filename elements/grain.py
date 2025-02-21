@@ -1,16 +1,16 @@
 class Paraffin:
     density = 800              # Paraffin's density [kg/m^3]
-    burnCoefficient = 0.132 # 0.098    # Linear term of the paraffin burn model [mm/s]
-    burnExponent = 0.55 # 0.61        # Exponent of the paraffin burn model [-]
+    burn_coefficient = 0.132 # 0.098    # Linear term of the paraffin burn model [mm/s]
+    burn_exponent = 0.55 # 0.61        # Exponent of the paraffin burn model [-]
 
 class Grain:
-    def __init__(self, material: Paraffin, length: float, internalDiameter: float, externalDiameter: float):
+    def __init__(self, material: Paraffin, length: float, internal_diameter: float, external_diameter: float):
         self.material = material                    # Usually a Paraffin object
-        self.internalDiameter = internalDiameter    # Grain hole diameter (assumes circular profile) [m]
-        self.externalDiameter = externalDiameter    # Grain external diameter [m]
+        self.internal_diameter = internal_diameter    # Grain hole diameter (assumes circular profile) [m]
+        self.external_diameter = external_diameter    # Grain external diameter [m]
         self.length = length                        # Grain length [m]
 
-        self.volumeVariation = 0
+        self.volume_variation = 0
 
-    def AddInternalDiameterVariation(self, internalDiameterVariation: float):
-        self.internalDiameter = self.internalDiameter + internalDiameterVariation
+    def add_internal_diameter_variation(self, internal_diameter_variation: float):
+        self.internal_diameter = self.internal_diameter + internal_diameter_variation

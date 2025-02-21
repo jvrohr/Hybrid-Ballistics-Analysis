@@ -2,35 +2,35 @@ import matplotlib.pyplot as plt
 
 class PlotResults:
     def __init__(self):
-        self.resultsDict = {}
+        self.results_dict = {}
         # Initialize results dict structure
-        self.resultsDict["Time"] = []
-        self.resultsDict["Temperature"] = []
-        self.resultsDict["Quantity Gas"] = []
-        self.resultsDict["Quantity Liquid"] = []
-        self.resultsDict["Thrust"] = []
-        self.resultsDict["Pressure Chamber"] = []
-        self.resultsDict["Pressure Tank"] = []
-        self.resultsDict["Oxidizer Mass Flow"] = []
+        self.results_dict["Time"] = []
+        self.results_dict["Temperature"] = []
+        self.results_dict["Quantity Gas"] = []
+        self.results_dict["Quantity Liquid"] = []
+        self.results_dict["Thrust"] = []
+        self.results_dict["Pressure Chamber"] = []
+        self.results_dict["Pressure Tank"] = []
+        self.results_dict["Oxidizer Mass Flow"] = []
 
-    def PlotResultsBurn(self):
+    def plot_results_burn(self):
         title = "Hybrid Motor Burn Result"
-        time = self.resultsDict["Time"]
-        self.PlotData(time, self.resultsDict["Thrust"], "Thrust [N]", title)
-        self.PlotData(time, [i/1e5 for i in self.resultsDict["Pressure Chamber"]], "Pressure Chamber [bar]", title)
-        self.PlotData(time, [i/1e5 for i in self.resultsDict["Pressure Tank"]], "Tank Pressure [bar]", title)
+        time = self.results_dict["Time"]
+        self.plot_data(time, self.results_dict["Thrust"], "Thrust [N]", title)
+        self.plot_data(time, [i/1e5 for i in self.results_dict["Pressure Chamber"]], "Pressure Chamber [bar]", title)
+        self.plot_data(time, [i/1e5 for i in self.results_dict["Pressure Tank"]], "Tank Pressure [bar]", title)
 
-    def PlotResultsBlowdown(self):
+    def plot_results_blowdown(self):
         title = "Hybrid Motor Blowdown Result"
-        time = self.resultsDict["Time"]
-        self.PlotData(time, self.resultsDict["Temperature"], "Temperature [K]", title)
-        self.PlotData(time, self.resultsDict["Quantity Gas"], "Quantity Gas [mols]", title)
-        self.PlotData(time, self.resultsDict["Quantity Liquid"], "Quantity Liquid [mols]", title)
-        self.PlotData(time, [i/1e5 for i in self.resultsDict["Pressure Tank"]], "Tank Pressure [bar]", title)
-        self.PlotData(time, [i/1e5 for i in self.resultsDict["Pressure Chamber"]], "Pressure Chamber [bar]", title)
-        self.PlotData(time, self.resultsDict["Oxidizer Mass Flow"], "Oxidizer Mass Flow [kg/s]", title)
+        time = self.results_dict["Time"]
+        self.plot_data(time, self.results_dict["Temperature"], "Temperature [K]", title)
+        self.plot_data(time, self.results_dict["Quantity Gas"], "Quantity Gas [mols]", title)
+        self.plot_data(time, self.results_dict["Quantity Liquid"], "Quantity Liquid [mols]", title)
+        self.plot_data(time, [i/1e5 for i in self.results_dict["Pressure Tank"]], "Tank Pressure [bar]", title)
+        self.plot_data(time, [i/1e5 for i in self.results_dict["Pressure Chamber"]], "Pressure Chamber [bar]", title)
+        self.plot_data(time, self.results_dict["Oxidizer Mass Flow"], "Oxidizer Mass Flow [kg/s]", title)
 
-    def PlotData(self, X, Y, ylabel, title, xlabel="Time [s]", show=True):
+    def plot_data(self, X, Y, ylabel, title, xlabel="Time [s]", show=True):
         plt.plot(X, Y)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)

@@ -1,11 +1,11 @@
 class Environment:
     R = 8.3143                      # Universal Gas Constant [J/(mol*K)]
-    atmosphericPressure = 101325    # Atmospheric Pressure [Pa]
-    MWair = 0.0289652               # Molecular weight air [kg/mol]
+    atmospheric_pressure = 101325    # Atmospheric Pressure [Pa]
+    MW_air = 0.0289652               # Molecular weight air [kg/mol]
 
-    def __init__(self, temperature: float, pressure=atmosphericPressure):
+    def __init__(self, temperature: float, pressure=atmospheric_pressure):
         self.T = temperature # Ambient Temperature [K]
         self.pressure = pressure
     
     def GetAirDensity(self):
-        return self.pressure*self.MWair/(self.R*self.T)
+        return self.pressure*self.MW_air/(self.R*self.T)

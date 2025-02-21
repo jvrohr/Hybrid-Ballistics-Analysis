@@ -17,86 +17,86 @@ class NitrousOxide:
     F = [-1.009, -6.28792, 7.50332, -7.90463, -0.629427]        # Vapor Density of N2O [kg/m^3]
     H = [1.72328, -0.83950, 0.51060, -0.10412]                  # Liquid N2O Density [kg/m^3]
 
-    molecularMass = 0.044013        # N2O molecular mass [kg/mol]
-    criticalPressure = 7251000      # Critical Pressure of N2O [Pa]
-    criticalTemperature = 309.57    # Critical Temperature of N2O [K]
-    criticalDensity = 452           # Critical Density of N2O [kg/m^3]
+    molecular_mass = 0.044013        # N2O molecular mass [kg/mol]
+    critical_pressure = 7251000      # Critical Pressure of N2O [Pa]
+    critical_temperature = 309.57    # Critical Temperature of N2O [K]
+    critical_density = 452           # Critical Density of N2O [kg/m^3]
 
     def __init__(self, temperature: float):
         self.temperature = temperature  # Current approximately uniform N2O temperature [K]
 
-        self.pressure = self.GetVaporPressure()
-        self.temperatureRatio = self.temperature/self.criticalTemperature
+        self.pressure = self.get_vapor_pressure()
+        self.temperature_ratio = self.temperature/self.critical_temperature
 
         self.Z = 1
 
-    def AddTemperatureVariation(self, temperatureVariation: float) -> None:
-        self.temperature = self.temperature + temperatureVariation
-        self.pressure = self.GetVaporPressure()
-        self.temperatureRatio = self.temperature/self.criticalTemperature
+    def add_temperature_variation(self, temperature_variation: float) -> None:
+        self.temperature = self.temperature + temperature_variation
+        self.pressure = self.get_vapor_pressure()
+        self.temperature_ratio = self.temperature/self.critical_temperature
 
-    def SetPressure(self, pressure: float) -> None:
+    def set_pressure(self, pressure: float) -> None:
         self.pressure = pressure
 
-    def SetTemperature(self, temperature: float) -> None:
+    def set_temperature(self, temperature: float) -> None:
         self.temperature = temperature
-        self.temperatureRatio = self.temperature/self.criticalTemperature
+        self.temperature_ratio = self.temperature/self.critical_temperature
 
     # Molar volume of liquid N2O [m^3/mol]
-    def GetMolarVolumeLiquid(self) -> float:
-        return self.molecularMass/self.GetLiquidDensity()
+    def get_molar_volume_liquid(self) -> float:
+        return self.molecular_mass/self.get_liquid_density()
 
     # Vapor Pressure of Saturated N2O [Pa]
-    def GetVaporPressure(self) -> float:
+    def get_vapor_pressure(self) -> float:
         return np.exp(self.G[0] + self.G[1]/self.temperature + self.G[2]*np.log(self.temperature) + self.G[3]*(self.temperature**self.G[4]))
 
     # Vapor Pressure Temperature Derivative of N2O [Pa/Ks]
-    def GetVaporPressureDerivTemp(self) -> float:
+    def get_vapor_pressure_deriv_temp(self) -> float:
         return (-self.G[1]/(self.temperature**2) + self.G[2]/self.temperature + self.G[3]*self.G[4]*self.temperature**(self.G[4]-1)) * np.exp(self.G[0] + self.G[1]/self.temperature + self.G[2]*np.log(self.temperature) + self.G[3]*self.temperature**self.G[4])
 
     # Gaseous N2O Specific Heat for constant pressure [J/(mol*K)]
-    def GetSpecificHeatCPGaseous(self) -> float:
-        auxVariable = 1 - self.temperatureRatio
-        return self.molecularMass*1e3*(self.D[0]*(1 + self.D[1]*(auxVariable**(-2/3)) + self.D[2]*(auxVariable**(-1/3)) + self.D[3]*(auxVariable**(1/3)) + self.D[4]*(auxVariable**(2/3))))
+    def get_CP_gaseous(self) -> float:
+        auxVariable = 1 - self.temperature_ratio
+        return self.molecular_mass*1e3*(self.D[0]*(1 + self.D[1]*(auxVariable**(-2/3)) + self.D[2]*(auxVariable**(-1/3)) + self.D[3]*(auxVariable**(1/3)) + self.D[4]*(auxVariable**(2/3))))
 
     # Liquid N2O Specific Heat for constant pressure [J/(mol*K)]
-    def GetSpecificHeatCPLiquid(self) -> float:
-        auxVariable = 1 - self.temperatureRatio
-        return self.molecularMass*1e3*(self.E[0]*(1 + self.E[1]/auxVariable + self.E[2]*auxVariable + self.E[3]*(auxVariable**2) + self.E[4]*(auxVariable**3)))
+    def get_CP_liquid(self) -> float:
+        auxVariable = 1 - self.temperature_ratio
+        return self.molecular_mass*1e3*(self.E[0]*(1 + self.E[1]/auxVariable + self.E[2]*auxVariable + self.E[3]*(auxVariable**2) + self.E[4]*(auxVariable**3)))
 
     # Specific Heat for constant pressure [J/(mol*K)]
-    def GetSpecificHeatCP(self, phase: Phase) -> float:
+    def get_CP(self, phase: Phase) -> float:
         if phase == Phase.LIQUID:
-            return self.GetSpecificHeatCPLiquid()
+            return self.get_CP_liquid()
         elif phase == Phase.GAS:
-            return self.GetSpecificHeatCPGaseous()
+            return self.get_CP_gaseous()
         else:
             raise ValueError(phase)
 
     # Adiabatic expansion coefficient, specific heats ratio Cp/Cv [-]
-    def GetSpecificHeatsRatio(self, phase: Phase):
-        return 1/(1 - Environment.R/self.GetSpecificHeatCP(phase))
+    def get_specific_heats_ratio(self, phase: Phase):
+        return 1/(1 - Environment.R/self.get_CP(phase))
 
     # Vaporization Heat of N2O [J/mol]
-    def GetVaporizationHeat(self) -> float:
-        return self.GetSpecificEnthalpyGaseous() - self.GetSpecificEnthalpyLiquid()
+    def get_vaporization_eat(self) -> float:
+        return self.get_specific_enthalpy_gaseous() - self.get_specific_enthalpy_liquid()
     
     # Specific Enthalpy Liquid [J/mol]
-    def GetSpecificEnthalpyLiquid(self):
-        auxVariable = 1 - self.temperatureRatio
-        return self.molecularMass*1e3*(self.J[0] + self.J[1]*auxVariable**(1/3) + self.J[2]*auxVariable**(2/3) + self.J[3]*auxVariable + self.J[4]*auxVariable**(4/3))
+    def get_specific_enthalpy_liquid(self):
+        auxVariable = 1 - self.temperature_ratio
+        return self.molecular_mass*1e3*(self.J[0] + self.J[1]*auxVariable**(1/3) + self.J[2]*auxVariable**(2/3) + self.J[3]*auxVariable + self.J[4]*auxVariable**(4/3))
 
     # Specific Enthalpy Gaseous [J/mol]
-    def GetSpecificEnthalpyGaseous(self):
-        auxVariable = 1 - self.temperatureRatio
-        return self.molecularMass*1e3*(self.L[0] + self.L[1]*auxVariable**(1/3) + self.L[2]*auxVariable**(2/3) + self.L[3]*auxVariable + self.L[4]*auxVariable**(4/3))
+    def get_specific_enthalpy_gaseous(self):
+        auxVariable = 1 - self.temperature_ratio
+        return self.molecular_mass*1e3*(self.L[0] + self.L[1]*auxVariable**(1/3) + self.L[2]*auxVariable**(2/3) + self.L[3]*auxVariable + self.L[4]*auxVariable**(4/3))
 
     # Density of gaseous/vapor N2O [kg/m^3]
-    def GetVaporDensity(self, temperature: float) -> float:
-        auxVariable = 1/(temperature/self.criticalTemperature) - 1
-        return self.criticalDensity*(np.exp(self.F[0]*(auxVariable**(1/3)) + self.F[1]*(auxVariable**(2/3)) + self.F[2]*auxVariable + self.F[3]*(auxVariable**(4/3)) + self.F[4]*(auxVariable**(5/3))))
+    def get_vapor_density(self, temperature: float) -> float:
+        auxVariable = 1/(temperature/self.critical_temperature) - 1
+        return self.critical_density*(np.exp(self.F[0]*(auxVariable**(1/3)) + self.F[1]*(auxVariable**(2/3)) + self.F[2]*auxVariable + self.F[3]*(auxVariable**(4/3)) + self.F[4]*(auxVariable**(5/3))))
 
     # Density of liquid N2O [kg/m^3]
-    def GetLiquidDensity(self) -> float:
-        auxVariable = 1 - self.temperatureRatio
-        return self.criticalDensity*(np.exp(self.H[0]*(auxVariable**(1/3)) + self.H[1]*(auxVariable**(2/3)) + self.H[2]*auxVariable + self.H[3]*(auxVariable**(4/3))))
+    def get_liquid_density(self) -> float:
+        auxVariable = 1 - self.temperature_ratio
+        return self.critical_density*(np.exp(self.H[0]*(auxVariable**(1/3)) + self.H[1]*(auxVariable**(2/3)) + self.H[2]*auxVariable + self.H[3]*(auxVariable**(4/3))))
