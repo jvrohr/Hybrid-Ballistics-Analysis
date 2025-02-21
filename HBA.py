@@ -46,11 +46,17 @@ class SolveSimulation:
             iteration_function(i)
 
     def run_blow_down_iteration(self, time: float):
-        self.update_oxidizer_blowdown()
+        self.rocket_engine.injector.update_mass_flow(self.rocket_engine.chamber.pressure,
+                                                     self.rocket_engine.tank.fluid)
+        self.rocket_engine.tank.update_oxidizer_blowdown(self.simulation_parameters.time_step, 
+                                                         self.rocket_engine.injector.oxidizer_mass_flow)
         self.save_results_blowdown(time)
 
     def run_burn_iteration(self, time: float):
-        self.update_oxidizer_blowdown()
+        self.rocket_engine.injector.update_mass_flow(self.rocket_engine.chamber.pressure,
+                                                     self.rocket_engine.tank.fluid)
+        self.rocket_engine.tank.update_oxidizer_blowdown(self.simulation_parameters.time_step, 
+                                                         self.rocket_engine.injector.oxidizer_mass_flow)
         self.update_fuel_regression()
         self.run_CEA()
         self.update_chamber_pressure()
@@ -67,54 +73,6 @@ class SolveSimulation:
         self.plot.results_dict["Pressure Tank"].append(tank.fluid.pressure)
         self.plot.results_dict["Oxidizer Mass Flow"].append(injector.oxidizer_mass_flow)
         self.plot.results_dict["Pressure Chamber"].append(self.rocket_engine.chamber.pressure)
-
-    def update_oxidizer_blowdown(self):
-        tank = self.rocket_engine.tank
-        deltat = self.simulation_parameters.time_step
-
-        self.calculate_tank_derivatives()
-
-        tank.fluid.add_temperature_variation(self.delta_temperature*deltat)
-        tank.add_molar_quantity_gaseous_variation(self.delta_N_gaseous*deltat)
-        tank.add_molar_quantity_liquid_variation(self.delta_N_liquid*deltat)
-
-    def calculate_tank_derivatives(self) -> None:
-        tank = self.rocket_engine.tank
-        fluid = tank.fluid
-        injector = self.rocket_engine.injector
-        chamber = self.rocket_engine.chamber
-        environment = self.simulation_parameters.environment
-
-        if(tank.quantity_liquid > 0):
-            phase = Phase.LIQUID
-        else:
-            tank.quantity_liquid = 0
-            fluid.Z = fluid.pressure * tank.volume / (fluid.temperature * environment.R * tank.quantity_gaseous)
-            phase = Phase.GAS
-
-        injector.oxidizer_mass_flow = injector.get_mass_flow(chamber.pressure, phase, fluid)
-        fluid.pressure = fluid.Z * tank.quantity_gaseous * environment.R * fluid.temperature / \
-            (tank.volume - tank.quantity_liquid * fluid.get_molar_volume_liquid())          # [Pa]
-        a = tank.tank_mass * tank.get_CP_tank_material(fluid.temperature) + \
-            tank.quantity_gaseous * fluid.get_CP_gaseous() + \
-                tank.quantity_liquid * fluid.get_CP_liquid()                   # [J/K]
-        b = fluid.pressure * fluid.get_molar_volume_liquid()                               # [J/mol]
-        e = - fluid.get_vaporization_eat() + environment.R * fluid.temperature           # [J/mol]
-        f = - injector.oxidizer_mass_flow / fluid.molecular_mass                                                         # [mol/s]
-        j = - fluid.get_molar_volume_liquid() * fluid.get_vapor_pressure()                   # [J/mol]
-        k = (tank.volume - tank.quantity_liquid * fluid.get_molar_volume_liquid()) * \
-            fluid.get_vapor_pressure_deriv_temp()                                           # [J/K]
-        m = environment.R * fluid.temperature                                           # [J/mol]
-        q = environment.R * tank.quantity_gaseous                                        # [J/K]
-
-        if(phase == Phase.LIQUID):
-            self.delta_N_gaseous = (-f * (-j * a + (q - k) * b)) / (a * (m + j) + (q - k) * (e - b))      # [mol/s]
-            self.delta_N_liquid = (-self.delta_N_gaseous * (m * a + (q - k) * e)) / (-j * a + (q - k) * b)  # [mol/s] 
-        else:
-            self.delta_N_gaseous = -f         # [mol/s]
-            self.delta_N_liquid = 0           # [mol/s]
-        
-        self.delta_temperature = (b * self.delta_N_liquid + e * self.delta_N_gaseous) / a
 
     def update_fuel_regression(self):
         tank = self.rocket_engine.tank
@@ -187,3 +145,6 @@ class SolveSimulation:
         self.plot.results_dict["Thrust"].append(self.rocket_engine.thrust)
         self.plot.results_dict["Pressure Chamber"].append(self.rocket_engine.chamber.pressure)
         self.plot.results_dict["Pressure Tank"].append(self.rocket_engine.tank.fluid.pressure)
+
+
+# injector.oxidizer_mass_flow = injector.get_mass_flow(chamber.pressure, phase, fluid)

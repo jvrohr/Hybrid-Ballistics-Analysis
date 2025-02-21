@@ -12,6 +12,7 @@ class Injector:
 
         self.oxidizer_mass_flow = 0
 
+
     def compute_HEM(self, upstream_pressure, downstream_pressure):
         h1 = PropsSI('H', 'P', upstream_pressure, 'Q', 0, "N2O")
         s1 = PropsSI('S', 'P', upstream_pressure, 'Q', 0, "N2O")
@@ -19,6 +20,7 @@ class Injector:
         dens = PropsSI('D', 'P', downstream_pressure, 'S', s1, "N2O")
 
         return self.discharge_coefficient * self.total_injector_area * dens * np.sqrt(2 * (h1 - h2))
+
 
     def find_HEM_mass_flow_rate(self, upstream_pressure, downstream_pressure):
         """Finds the mass flow rate and ensures it does not decrease past the critical point"""
@@ -38,21 +40,23 @@ class Injector:
         else:
             return self.compute_HEM(upstream_pressure, downstream_pressure)
 
+
     # Mass of N2O liquid or gaseous flowing through the injector [kg/s]
-    def get_mass_flow(self, downstream_pressure: float, phase: Phase, fluid: NitrousOxide):
+    def update_mass_flow(self, downstream_pressure: float, fluid: NitrousOxide):
         if downstream_pressure >= fluid.pressure:
-            return 0
+            self.oxidizer_mass_flow = 0
         else:
-            if phase == Phase.GAS:
-                return self.discharge_coefficient*self.total_injector_area*np.sqrt(fluid.get_vapor_density(fluid.temperature)*(fluid.pressure - downstream_pressure))
-            elif phase == Phase.LIQUID:
+            if fluid.phase == Phase.GAS:
+                self.oxidizer_mass_flow = self.discharge_coefficient * self.total_injector_area * \
+                    np.sqrt(fluid.density * (fluid.pressure - downstream_pressure))
+                
+            elif fluid.phase == Phase.LIQUID:
                 deltaP = fluid.pressure - downstream_pressure
 
-                dens = PropsSI('D', 'P', downstream_pressure, 'Q', 0, "N2O")
                 mdot_spi = self.discharge_coefficient * self.total_injector_area * \
-                    np.sqrt(2*dens*deltaP) # fluid.get_liquid_density()
+                    np.sqrt(2 * fluid.density * deltaP)
 
                 mdot_hem = self.find_HEM_mass_flow_rate(fluid.pressure, downstream_pressure)
 
-                return (mdot_hem + mdot_spi) / 2
+                self.oxidizer_mass_flow = (mdot_hem + mdot_spi) / 2
             

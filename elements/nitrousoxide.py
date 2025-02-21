@@ -24,19 +24,21 @@ class NitrousOxide:
 
     def __init__(self, temperature: float):
         self.temperature = temperature  # Current approximately uniform N2O temperature [K]
+        self.temperature_ratio = self.temperature/self.critical_temperature
+        self.phase = Phase.LIQUID if self.temperature < self.critical_temperature else Phase.GAS
 
         self.pressure = self.get_vapor_pressure()
-        self.temperature_ratio = self.temperature/self.critical_temperature
+        self.density = self.get_density()
 
         self.Z = 1
 
     def add_temperature_variation(self, temperature_variation: float) -> None:
         self.temperature = self.temperature + temperature_variation
-        self.pressure = self.get_vapor_pressure()
-        self.temperature_ratio = self.temperature/self.critical_temperature
 
-    def set_pressure(self, pressure: float) -> None:
-        self.pressure = pressure
+        ## update values that depend on the temperature
+        self.pressure = self.get_vapor_pressure()
+        self.density = self.get_density()
+        self.temperature_ratio = self.temperature/self.critical_temperature
 
     def set_temperature(self, temperature: float) -> None:
         self.temperature = temperature
@@ -91,9 +93,17 @@ class NitrousOxide:
         auxVariable = 1 - self.temperature_ratio
         return self.molecular_mass*1e3*(self.L[0] + self.L[1]*auxVariable**(1/3) + self.L[2]*auxVariable**(2/3) + self.L[3]*auxVariable + self.L[4]*auxVariable**(4/3))
 
+    def get_density(self) -> float:
+        if self.phase == Phase.GAS:
+            return self.get_vapor_density()
+        elif self.phase == Phase.LIQUID:
+            return self.get_liquid_density()
+        else:
+            raise ValueError(self.phase)
+
     # Density of gaseous/vapor N2O [kg/m^3]
-    def get_vapor_density(self, temperature: float) -> float:
-        auxVariable = 1/(temperature/self.critical_temperature) - 1
+    def get_vapor_density(self) -> float:
+        auxVariable = 1/(self.temperature/self.critical_temperature) - 1
         return self.critical_density*(np.exp(self.F[0]*(auxVariable**(1/3)) + self.F[1]*(auxVariable**(2/3)) + self.F[2]*auxVariable + self.F[3]*(auxVariable**(4/3)) + self.F[4]*(auxVariable**(5/3))))
 
     # Density of liquid N2O [kg/m^3]
