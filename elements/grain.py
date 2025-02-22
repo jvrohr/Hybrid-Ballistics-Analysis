@@ -1,8 +1,9 @@
 import numpy as np
-from elements.paraffin import Paraffin
+from materials.fuels import Fuel
+import rocketcea.cea_obj as cea
 
 class Grain:
-    def __init__(self, material: Paraffin, length: float, internal_diameter: float, external_diameter: float):
+    def __init__(self, material: Fuel, length: float, internal_diameter: float, external_diameter: float):
         self.material = material                    # Usually a Paraffin object
         self.internal_diameter = internal_diameter    # Grain hole diameter (assumes circular profile) [m]
         self.external_diameter = external_diameter    # Grain external diameter [m]
@@ -12,6 +13,11 @@ class Grain:
         self.fuel_mass_flow = 0
         self.instant_OF = 0
         self.instant_mass_generation_rate = 0
+
+
+    def initialize_grain(self):
+        if(self.material.cea_input_string):
+            cea.add_new_fuel(self.material.name, self.material.cea_input_string)
 
 
     def get_port_trans_area(self) -> float:

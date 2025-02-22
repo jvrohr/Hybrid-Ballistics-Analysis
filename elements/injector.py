@@ -1,4 +1,4 @@
-from elements.nitrousoxide import *
+from materials.oxidizers import *
 from CoolProp.CoolProp import PropsSI
 from scipy.optimize import minimize_scalar
 import numpy as np
@@ -42,7 +42,7 @@ class Injector:
 
 
     # Mass of N2O liquid or gaseous flowing through the injector [kg/s]
-    def update_mass_flow(self, downstream_pressure: float, fluid: NitrousOxide):
+    def update_mass_flow(self, downstream_pressure: float, fluid: Oxidizer):
         if downstream_pressure >= fluid.pressure:
             self.oxidizer_mass_flow = 0
         else:

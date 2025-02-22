@@ -4,12 +4,6 @@ from utilities.convert import *
 from utilities.plot import *
 from elements.simparams import SimulationParameters
 
-paraffin_input_string = """
-    fuel paraffin(S)  C 73.0   H 124.0     wt%=100.00
-    h,cal=-444694.0724016     t(k)=298.15   rho=1.001766
-    """
-cea.add_new_fuel('Paraffin', paraffin_input_string)
-
 class SolveSimulation:
     results_dict = {}
 
@@ -23,6 +17,7 @@ class SolveSimulation:
         self.delta_pressure = 0
 
         self.rocket_engine.chamber.initialize_chamber(simulation_parameters)
+        self.rocket_engine.chamber.grain.initialize_grain()
         self.rocket_engine.chamber.nozzle.initialize_nozzle(simulation_parameters)
 
     def Run(self, option="burn"):
@@ -59,7 +54,9 @@ class SolveSimulation:
         self.rocket_engine.chamber.grain.update_fuel_regression(self.simulation_parameters.time_step, 
                                                          self.rocket_engine.injector.oxidizer_mass_flow)
 
-        self.rocket_engine.chamber.update_chamber_pressure(self.simulation_parameters)
+        self.rocket_engine.chamber.update_chamber_pressure(self.simulation_parameters, 
+                                                           self.rocket_engine.tank.fluid.name,
+                                                           self.rocket_engine.chamber.grain.material.name)
 
         self.rocket_engine.chamber.nozzle.update_exaust(self.rocket_engine.chamber.gamma,
                                                 self.rocket_engine.chamber.pressure,

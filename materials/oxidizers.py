@@ -1,8 +1,9 @@
 import numpy as np
 from elements.environment import *
-from elements.phase import Phase
+from materials.material import Oxidizer
+from materials.phase import Phase
 
-class NitrousOxide:
+class NitrousOxide(Oxidizer):
     # N2O Properties' coefficients, ESDU 91022
     G = [96.512, -4045, -12.277, 2.886e-5, 2]                   # Vapour pressure coefficients [Pa] (valid for 182.3 K - 309.57 K)
     J = [-200, 116.043, -917.225, 794.779, -589.587]            # Liquid N2O Specific enthalpy coefficients [kJ/kg]
@@ -19,14 +20,13 @@ class NitrousOxide:
     critical_density = 452           # Critical Density of N2O [kg/m^3]
 
     def __init__(self, temperature: float):
-        self.temperature = temperature  # Current approximately uniform N2O temperature [K]
-        self.temperature_ratio = self.temperature/self.critical_temperature
+        self.temperature = temperature
+        self.temperature_ratio = self.temperature / self.critical_temperature
         self.phase = Phase.LIQUID if self.temperature < self.critical_temperature else Phase.GAS
 
-        self.pressure = self.get_vapor_pressure()
-        self.density = self.get_density()
-
-        self.Z = 1
+        super().__init__(name = "N2O", temperature = self.temperature, density = self.get_density(), 
+                        phase = self.phase, pressure = self.get_vapor_pressure(), 
+                        molecular_mass = 0.044013, Z = 1)
 
     def add_temperature_variation(self, temperature_variation: float) -> None:
         self.temperature = self.temperature + temperature_variation
@@ -34,10 +34,6 @@ class NitrousOxide:
         ## update values that depend on the temperature
         self.pressure = self.get_vapor_pressure()
         self.density = self.get_density()
-        self.temperature_ratio = self.temperature/self.critical_temperature
-
-    def set_temperature(self, temperature: float) -> None:
-        self.temperature = temperature
         self.temperature_ratio = self.temperature/self.critical_temperature
 
     # Molar volume of liquid N2O [m^3/mol]
@@ -76,7 +72,7 @@ class NitrousOxide:
         return 1/(1 - Environment.R/self.get_CP(phase))
 
     # Vaporization Heat of N2O [J/mol]
-    def get_vaporization_eat(self) -> float:
+    def get_vaporization_heat(self) -> float:
         return self.get_specific_enthalpy_gaseous() - self.get_specific_enthalpy_liquid()
     
     # Specific Enthalpy Liquid [J/mol]

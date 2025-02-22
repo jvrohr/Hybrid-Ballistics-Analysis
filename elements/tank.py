@@ -1,15 +1,12 @@
-from elements.nitrousoxide import NitrousOxide
-from elements.aluminum import Aluminum
+from materials.oxidizers import Oxidizer
 from elements.environment import Environment
-from elements.phase import Phase
+from materials.phase import Phase
 
 class Tank:
-    def __init__(self, material: Aluminum, fluid: NitrousOxide, environment: Environment, volume: float, tank_mass: float, loaded_fluid_mass: float):
-        self.material = material
+    def __init__(self, fluid: Oxidizer, environment: Environment, volume: float, loaded_fluid_mass: float):
         self.fluid = fluid
         self.environment = environment
         self.volume = volume                    # [m^3]
-        self.tank_mass = tank_mass                # [kg]
         self.loaded_fluid_mass = loaded_fluid_mass  # [kg]
 
         self.total_N2O = self.loaded_fluid_mass/fluid.molecular_mass # [mol]
@@ -21,10 +18,6 @@ class Tank:
 
         self.quantity_gaseous = vapor_pressure_gaseous*(self.volume - molar_volume_liquid*self.total_N2O) / denominator # [mol]
         self.quantity_liquid = (self.total_N2O*environment.R*fluid.temperature - vapor_pressure_gaseous*self.volume) / denominator # [mol]
-
-    # Specific heat of aluminum tank casing [J/(kg*K)]
-    def get_CP_tank_material(self, temperature: float):
-        return self.material.get_CP(self.material, temperature=temperature)
     
     # Set Quantity of gaseous N2O molecules [mol]
     def add_molar_quantity_gaseous_variation(self, quantity_gaseous_variation):
@@ -46,11 +39,10 @@ class Tank:
 
         fluid.pressure = fluid.Z * self.quantity_gaseous * self.environment.R * fluid.temperature / \
             (self.volume - self.quantity_liquid * fluid.get_molar_volume_liquid())          # [Pa]
-        a = self.tank_mass * self.get_CP_tank_material(fluid.temperature) + \
-            self.quantity_gaseous * fluid.get_CP_gaseous() + \
+        a = self.quantity_gaseous * fluid.get_CP_gaseous() + \
                 self.quantity_liquid * fluid.get_CP_liquid()                   # [J/K]
         b = fluid.pressure * fluid.get_molar_volume_liquid()                               # [J/mol]
-        e = - fluid.get_vaporization_eat() + self.environment.R * fluid.temperature           # [J/mol]
+        e = - fluid.get_vaporization_heat() + self.environment.R * fluid.temperature           # [J/mol]
         f = - oxidizer_mass_flow / fluid.molecular_mass                                                         # [mol/s]
         j = - fluid.get_molar_volume_liquid() * fluid.get_vapor_pressure()                   # [J/mol]
         k = (self.volume - self.quantity_liquid * fluid.get_molar_volume_liquid()) * \

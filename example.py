@@ -1,10 +1,10 @@
 from HBA import *
-from elements.paraffin import *
+from materials.fuels import *
 import numpy as np
 
 envi = Environment(293)
 prop = NitrousOxide(293)
-tank = Tank(Aluminum, prop, envi, 0.00795, 2, 5.8)
+tank = Tank(prop, envi, 0.00795, 5.8)
 injec = Injector(0.66, 0.001, 37)
 noz = Nozzle(0.09, 0.027, 45*np.pi/180, 5)
 grain = Grain(Paraffin(burn_coefficient = 0.132, burn_exponent = 0.55), 

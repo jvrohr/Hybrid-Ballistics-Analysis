@@ -1,8 +1,7 @@
-from elements.grain import Grain
-from elements.nozzle import Nozzle
+from elements.grain import *
+from elements.nozzle import *
 from elements.simparams import SimulationParameters
 import numpy as np
-import rocketcea.cea_obj as cea
 from utilities.convert import *
 
 class Chamber:
@@ -28,9 +27,10 @@ class Chamber:
             self.grain.length * self.grain.get_port_trans_area()
 
 
-    def update_chamber_pressure(self, simulation_parameters: SimulationParameters):
+    def update_chamber_pressure(self, simulation_parameters: SimulationParameters, 
+                                oxidizer_name: str, fuel_name: str):
         deltat = simulation_parameters.time_step
-        cea_object = cea.CEA_Obj(oxName='N2O', fuelName='Paraffin')
+        cea_object = cea.CEA_Obj(oxName=oxidizer_name, fuelName=fuel_name)
 
         before_pressure = 0
         gas_mass = self.gas_mass
