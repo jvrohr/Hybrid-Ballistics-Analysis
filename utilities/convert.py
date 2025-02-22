@@ -6,3 +6,9 @@ def convert_fts_2_ms(velocity: float):
 
 def convert_lbmft3_2_kgm3(density: float):
     return density*16.01846
+
+def rankine_2_kelvin(rankine):
+    return rankine / 1.8
+
+def g_mol_2_kg(g_mol):
+    return g_mol / 1000

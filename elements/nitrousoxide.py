@@ -1,10 +1,6 @@
 import numpy as np
-from enum import Enum
 from elements.environment import *
-
-class Phase(Enum):
-    LIQUID = "liquid"
-    GAS = "gas"
+from elements.phase import Phase
 
 class NitrousOxide:
     # N2O Properties' coefficients, ESDU 91022

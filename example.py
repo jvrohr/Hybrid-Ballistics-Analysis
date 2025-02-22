@@ -1,21 +1,23 @@
 from HBA import *
+from elements.paraffin import *
 import numpy as np
 
-envi = Environment(298)
-prop = NitrousOxide(300)
-injec = Injector(0.8, np.pi*0.001**2, 20)
-tank = Tank(Aluminum, prop, envi, 0.0046, 2, 2.57)
-noz = Nozzle(0.1, 0.1, 0.002, 45*np.pi/180, 0.9)
-grain = Grain(Paraffin(), 0.5, 0.01, 0.5)
-chamber = Chamber(envi.atmosphericPressure, 0.5**2*np.pi, 0.2, 0.2)
+envi = Environment(293)
+prop = NitrousOxide(293)
+tank = Tank(Aluminum, prop, envi, 0.00795, 2, 5.8)
+injec = Injector(0.66, 0.001, 37)
+noz = Nozzle(0.09, 0.027, 45*np.pi/180, 5)
+grain = Grain(Paraffin(burn_coefficient = 0.132, burn_exponent = 0.55), 
+              0.25, 0.045, 0.086)
+chamber = Chamber(envi.atmospheric_pressure, 0.09, 0.075, 0.075, grain, noz)
 
-engine = RocketEngine(injec, tank, noz, grain, chamber)
+engine = RocketEngine(injec, tank, chamber, 0.9)
 
-simParams = SimulationParameters(envi, 0.01, 5)
+simParams = SimulationParameters(envi, 0.002, 12)
 sim = SolveSimulation(engine, simParams)
 
-sim.Run("blowdown")
-sim.plot.PlotResultsBlowdown()
+# sim.Run("blowdown")
+# sim.plot.plot_results_blowdown()
 
 sim.Run("burn")
-sim.plot.PlotResultsBurn()
+sim.plot.plot_results_burn()

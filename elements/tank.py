@@ -1,10 +1,7 @@
-from elements.nitrousoxide import *
-
-class Aluminum:
-    A = [4.8, 0.00322, 155.239]
-
-    def get_CP(self, temperature: float):
-        return (self.A[0] + self.A[1]*temperature)*self.A[2]
+from elements.nitrousoxide import NitrousOxide
+from elements.aluminum import Aluminum
+from elements.environment import Environment
+from elements.phase import Phase
 
 class Tank:
     def __init__(self, material: Aluminum, fluid: NitrousOxide, environment: Environment, volume: float, tank_mass: float, loaded_fluid_mass: float):
