@@ -4,9 +4,10 @@ from elements.simparams import SimulationParameters
 from elements.simobject import SimulationObject
 
 class FeedingSystem(SimulationObject):
-    def __init__(self, injector: Injector, tank: Tank):
+    def __init__(self, injector: Injector, tank: Tank, pressure_drop = 0.0):
         self.injector = injector
         self.tank = tank
+        self.pressure_drop = pressure_drop
 
 
     def initialize(self, simulation_parameters: SimulationParameters):
@@ -20,7 +21,8 @@ class FeedingSystem(SimulationObject):
 
     
     def run(self, time: float, results_dict: dict):
-        self.injector.update_mass_flow(self.environment.atmospheric_pressure, self.tank.fluid)
+        self.injector.update_mass_flow(self.environment.atmospheric_pressure, self.tank.fluid, 
+                                       self.pressure_drop)
         self.tank.update_oxidizer_blowdown(self.time_step, self.injector.oxidizer_mass_flow)
         self.update_feed()
         self.save_results(time, results_dict)

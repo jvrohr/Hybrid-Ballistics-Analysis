@@ -42,21 +42,23 @@ class Injector:
 
 
     # Mass of N2O liquid or gaseous flowing through the injector [kg/s]
-    def update_mass_flow(self, downstream_pressure: float, fluid: Oxidizer):
-        if downstream_pressure >= fluid.pressure:
+    def update_mass_flow(self, downstream_pressure: float, fluid: Oxidizer, pressure_drop: float):
+        ## account for line pressure drop
+        upstream_pressure = fluid.pressure - pressure_drop
+        if downstream_pressure >= upstream_pressure:
             self.oxidizer_mass_flow = 0
         else:
             if fluid.phase == Phase.GAS:
                 self.oxidizer_mass_flow = self.discharge_coefficient * self.total_injector_area * \
-                    np.sqrt(fluid.density * (fluid.pressure - downstream_pressure))
+                    np.sqrt(fluid.density * (upstream_pressure - downstream_pressure))
                 
             elif fluid.phase == Phase.LIQUID:
-                deltaP = fluid.pressure - downstream_pressure
+                deltaP = upstream_pressure - downstream_pressure
 
                 mdot_spi = self.discharge_coefficient * self.total_injector_area * \
                     np.sqrt(2 * fluid.density * deltaP)
 
-                mdot_hem = self.find_HEM_mass_flow_rate(fluid.pressure, downstream_pressure)
+                mdot_hem = self.find_HEM_mass_flow_rate(upstream_pressure, downstream_pressure)
 
                 self.oxidizer_mass_flow = (mdot_hem + mdot_spi) / 2
             

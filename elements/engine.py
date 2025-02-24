@@ -55,7 +55,8 @@ class RocketEngine(SimulationObject):
 
 
     def run(self, time: float, results_dict: dict):
-        self.injector.update_mass_flow(self.chamber.pressure, self.tank.fluid)
+        self.injector.update_mass_flow(self.chamber.pressure, self.tank.fluid, 
+                                       self.feeding_system.pressure_drop)
         
         self.tank.update_oxidizer_blowdown(self.time_step, self.injector.oxidizer_mass_flow)
 
