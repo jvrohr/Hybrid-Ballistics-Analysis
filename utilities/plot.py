@@ -27,7 +27,6 @@ class PlotResults:
         self.plot_data(time, self.results_dict["Quantity Gas"], "Quantity Gas [mols]", title)
         self.plot_data(time, self.results_dict["Quantity Liquid"], "Quantity Liquid [mols]", title)
         self.plot_data(time, [i/1e5 for i in self.results_dict["Pressure Tank"]], "Tank Pressure [bar]", title)
-        self.plot_data(time, [i/1e5 for i in self.results_dict["Pressure Chamber"]], "Pressure Chamber [bar]", title)
         self.plot_data(time, self.results_dict["Oxidizer Mass Flow"], "Oxidizer Mass Flow [kg/s]", title)
 
     def plot_data(self, X, Y, ylabel, title, xlabel="Time [s]", show=True):

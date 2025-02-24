@@ -1,5 +1,5 @@
 import numpy as np
-from elements.simparams import SimulationParameters
+from utilities.environment import Environment
 from scipy.optimize import fsolve
 
 class Nozzle:
@@ -13,15 +13,15 @@ class Nozzle:
         self.exit_area = self.super_area_ratio * self.throat_area
 
 
-    def initialize_nozzle(self, simulation_parameters: SimulationParameters):
+    def initialize_nozzle(self, environment: Environment):
         self.mass_flow_nozzle = 0
-        self.exaust_pressure = simulation_parameters.environment.atmospheric_pressure
+        self.exaust_pressure = environment.atmospheric_pressure
 
 
     def update_exaust(self, gamma: float, chamber_pressure: float, MW_comb_gas: float, 
-                      chamber_temperature: float, simulation_parameters: SimulationParameters):
+                      chamber_temperature: float, environment: Environment):
         
-        R_specific = simulation_parameters.environment.R / MW_comb_gas
+        R_specific = environment.R / MW_comb_gas
 
         self.mass_flow_nozzle = self.throat_area * chamber_pressure * \
             np.sqrt(gamma / (R_specific * chamber_temperature)) * \

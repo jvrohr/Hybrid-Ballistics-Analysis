@@ -1,6 +1,6 @@
 from elements.grain import *
 from elements.nozzle import *
-from elements.simparams import SimulationParameters
+from utilities.environment import Environment
 import numpy as np
 from utilities.convert import *
 
@@ -15,11 +15,11 @@ class Chamber:
         self.nozzle = nozzle
 
 
-    def initialize_chamber(self, simulation_parameters: SimulationParameters):
+    def initialize_chamber(self, environment: Environment):
         self.gas_mass = 0 # self.get_chamber_internal_volume() * simulation_parameters.environment.GetAirDensity()
-        self.gamma = simulation_parameters.environment.gamma_air
-        self.MW_comb_gas = simulation_parameters.environment.MW_air
-        self.combustion_temperature = simulation_parameters.environment.T
+        self.gamma = environment.gamma_air
+        self.MW_comb_gas = environment.MW_air
+        self.combustion_temperature = environment.T
 
 
     def get_chamber_internal_volume(self) -> float:
@@ -27,9 +27,8 @@ class Chamber:
             self.grain.length * self.grain.get_port_trans_area()
 
 
-    def update_chamber_pressure(self, simulation_parameters: SimulationParameters, 
+    def update_chamber_pressure(self, time_step: float, environment: Environment,
                                 oxidizer_name: str, fuel_name: str):
-        deltat = simulation_parameters.time_step
         cea_object = cea.CEA_Obj(oxName=oxidizer_name, fuelName=fuel_name)
 
         before_pressure = 0
@@ -47,11 +46,11 @@ class Chamber:
             self.combustion_temperature = rankine_2_kelvin(self.combustion_temperature)
             self.MW_comb_gas = g_mol_2_kg(self.MW_comb_gas) # kg/mol
 
-            gas_mass_variation = (self.grain.instant_mass_generation_rate - self.nozzle.mass_flow_nozzle) * deltat
+            gas_mass_variation = (self.grain.instant_mass_generation_rate - self.nozzle.mass_flow_nozzle) * time_step
             gas_mass = gas_mass + gas_mass_variation
             density_comb_gas = gas_mass / self.get_chamber_internal_volume()
 
-            self.pressure = (simulation_parameters.environment.R / self.MW_comb_gas) * \
+            self.pressure = (environment.R / self.MW_comb_gas) * \
                 self.combustion_temperature * density_comb_gas
 
         self.gas_mass = gas_mass

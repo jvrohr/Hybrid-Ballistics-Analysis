@@ -13,6 +13,9 @@ class Oxidizer(Material):
         self.molecular_mass = molecular_mass
         self.Z = Z
 
+    def add_temperature_variation(self, temperature_variation):
+        self.temperature = self.temperature + temperature_variation
+
 class Fuel(Material):
     def __init__(self, name, density, burn_coefficient, burn_exponent, cea_input_string):
         super().__init__(name, density)

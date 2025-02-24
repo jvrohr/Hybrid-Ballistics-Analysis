@@ -1,5 +1,5 @@
 import numpy as np
-from elements.environment import *
+from utilities.environment import *
 from materials.material import Oxidizer
 from materials.phase import Phase
 
@@ -29,8 +29,8 @@ class NitrousOxide(Oxidizer):
                         molecular_mass = 0.044013, Z = 1)
 
     def add_temperature_variation(self, temperature_variation: float) -> None:
-        self.temperature = self.temperature + temperature_variation
-
+        super().add_temperature_variation(temperature_variation)
+        
         ## update values that depend on the temperature
         self.pressure = self.get_vapor_pressure()
         self.density = self.get_density()

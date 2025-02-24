@@ -1,5 +1,5 @@
 from materials.oxidizers import Oxidizer
-from elements.environment import Environment
+from utilities.environment import Environment
 from materials.phase import Phase
 
 class Tank:

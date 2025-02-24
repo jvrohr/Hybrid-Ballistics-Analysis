@@ -1,4 +1,4 @@
-from elements.environment import Environment
+from utilities.environment import Environment
 
 class SimulationParameters:
     def __init__(self, environment: Environment, time_step: float, total_time: float):
