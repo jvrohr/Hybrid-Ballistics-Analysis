@@ -10,12 +10,12 @@ grain = Grain(Paraffin(burn_coefficient = 0.132, burn_exponent = 0.55),
               0.25, 0.045, 0.086)
 chamber = Chamber(envi.atmospheric_pressure, 0.09, 0.075, 0.075, grain, noz)
 
-feed = FeedingSystem(injec, tank, pressure_drop=1e6)
+feed = FeedingSystem(injec, tank)
 
 engine = RocketEngine(feed, chamber, 0.9)
 
 simParams = SimulationParameters(envi, 0.002, 12)
-sim = SolveSimulation(feed, simParams)
+sim = SolveSimulation(engine, simParams)
 
 sim.run("blowdown")
 sim.plot("blowdown")

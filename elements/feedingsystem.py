@@ -38,3 +38,5 @@ class FeedingSystem(SimulationObject):
         results_dict["Quantity Liquid"].append(tank.quantity_liquid)
         results_dict["Pressure Tank"].append(tank.fluid.pressure)
         results_dict["Oxidizer Mass Flow"].append(injector.oxidizer_mass_flow)
+        results_dict["Oxidizer Mass"].append((tank.quantity_gaseous + tank.quantity_liquid) * \
+                                             tank.fluid.molecular_mass)

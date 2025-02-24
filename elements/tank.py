@@ -43,7 +43,7 @@ class Tank:
                 self.quantity_liquid * fluid.get_CP_liquid()                   # [J/K]
         b = fluid.pressure * fluid.get_molar_volume_liquid()                               # [J/mol]
         e = - fluid.get_vaporization_heat() + self.environment.R * fluid.temperature           # [J/mol]
-        f = - oxidizer_mass_flow / fluid.molecular_mass                                                         # [mol/s]
+        f = - oxidizer_mass_flow / fluid.molecular_mass                                      # [mol/s]
         j = - fluid.get_molar_volume_liquid() * fluid.get_vapor_pressure()                   # [J/mol]
         k = (self.volume - self.quantity_liquid * fluid.get_molar_volume_liquid()) * \
             fluid.get_vapor_pressure_deriv_temp()                                           # [J/K]

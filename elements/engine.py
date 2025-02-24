@@ -79,3 +79,4 @@ class RocketEngine(SimulationObject):
         results_dict["Thrust"].append(self.thrust)
         results_dict["Pressure Chamber"].append(self.chamber.pressure)
         results_dict["Pressure Tank"].append(self.tank.fluid.pressure)
+        results_dict["O/F"].append(self.chamber.grain.instant_OF)

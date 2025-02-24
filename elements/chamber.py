@@ -3,6 +3,7 @@ from elements.nozzle import *
 from utilities.environment import Environment
 import numpy as np
 from utilities.convert import *
+from scipy.interpolate import RegularGridInterpolator
 
 class Chamber:
     def __init__(self, pressure: float, diameter: float, pre_combustor_length: float, 
@@ -21,6 +22,18 @@ class Chamber:
         self.MW_comb_gas = environment.MW_air
         self.combustion_temperature = environment.T
 
+        # Carregar dados
+        data = np.load("CEA_results.npz")
+        gamma = data["gamma"]
+        MW_comb_gas = data["MW_comb_gas"]
+        combustion_temperature = data["combustion_temperature"]
+        Pchamber_vec = data["Pchamber_vec"]
+        OF_vec = data["OF_vec"]
+
+        self.interp_temp = RegularGridInterpolator((Pchamber_vec, OF_vec), combustion_temperature)
+        self.interp_gamma = RegularGridInterpolator((Pchamber_vec, OF_vec), gamma)
+        self.interp_MW = RegularGridInterpolator((Pchamber_vec, OF_vec), MW_comb_gas)
+
 
     def get_chamber_internal_volume(self) -> float:
         return self.transversal_area * (self.post_combustor_length + self.pre_combustor_length) + \
@@ -36,11 +49,15 @@ class Chamber:
         while(abs(before_pressure - self.pressure) > 0.1):
             gas_mass = self.gas_mass
             before_pressure = self.pressure
-            chamber_pressure_psi = convert_pa_2_psia(self.pressure)
+            # chamber_pressure_psi = convert_pa_2_psia(self.pressure)
 
-            self.MW_comb_gas, self.gamma = cea_object.get_Chamber_MolWt_gamma(chamber_pressure_psi, 
-                                                                            self.grain.instant_OF) # [g/mol | -]
-            self.combustion_temperature = cea_object.get_Tcomb(chamber_pressure_psi, self.grain.instant_OF)
+            # self.MW_comb_gas, self.gamma = cea_object.get_Chamber_MolWt_gamma(chamber_pressure_psi, 
+            #                                                                 self.grain.instant_OF) # [g/mol | -]
+            # self.combustion_temperature = cea_object.get_Tcomb(chamber_pressure_psi, self.grain.instant_OF)
+
+            self.MW_comb_gas = self.interp_MW([self.pressure, self.grain.instant_OF])[0]
+            self.gamma = self.interp_gamma([self.pressure, self.grain.instant_OF])[0]
+            self.combustion_temperature = self.interp_temp([self.pressure, self.grain.instant_OF])[0]
             
             ## converting from american units to SI
             self.combustion_temperature = rankine_2_kelvin(self.combustion_temperature)

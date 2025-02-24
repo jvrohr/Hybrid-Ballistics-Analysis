@@ -33,7 +33,7 @@ class SolveSimulation:
     def run(self, option="burn"):
         self.plot_obj = PlotResults()
         deltat = self.simulation_parameters.time_step
-        time = self.simulation_parameters.total_time
+        max_time = self.simulation_parameters.max_time
         self.ran = option
 
         if self.sim_object.__class__.__name__ == "FeedingSystem":
@@ -46,8 +46,11 @@ class SolveSimulation:
             else:
                 raise ValueError(option)
 
-        for i in np.arange(0, time, deltat):
-            iteration_function(i, self.plot_obj.results_dict)
+        i = 0
+        while(self.sim_object.tank.quantity_gaseous > 0 and i * deltat < max_time):
+            iteration_function(i * deltat, self.plot_obj.results_dict)
+            i = i + 1
+
 
     def plot(self, option="burn"):
         if self.sim_object.__class__.__name__ == "FeedingSystem":

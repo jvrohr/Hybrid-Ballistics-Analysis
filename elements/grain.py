@@ -40,6 +40,10 @@ class Grain:
 
         self.volume_variation = (before_area - after_area) * self.length
 
-        self.instant_OF = oxidizer_mass_flow / self.fuel_mass_flow # [-]
+        if(self.fuel_mass_flow > 0):
+            self.instant_OF = oxidizer_mass_flow / self.fuel_mass_flow # [-]
+        else:
+            self.instant_OF = 50
+        
         self.instant_mass_generation_rate = oxidizer_mass_flow + self.fuel_mass_flow # [kg/s]
 
