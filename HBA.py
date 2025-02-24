@@ -20,6 +20,7 @@ class SolveSimulation:
     def __init__(self, sim_object: SimulationObject, simulation_parameters: SimulationParameters):
         self.sim_object = sim_object
         self.simulation_parameters = simulation_parameters
+        self.ran = "no"
 
         self.delta_temperature = 0
         self.delta_N_gaseous = 0
@@ -33,6 +34,7 @@ class SolveSimulation:
         self.plot_obj = PlotResults()
         deltat = self.simulation_parameters.time_step
         time = self.simulation_parameters.total_time
+        self.ran = option
 
         if self.sim_object.__class__.__name__ == "FeedingSystem":
             iteration_function = self.sim_object.run
@@ -51,7 +53,7 @@ class SolveSimulation:
         if self.sim_object.__class__.__name__ == "FeedingSystem":
             self.plot_obj.plot_results_blowdown()
         else:
-            if option == "burn":
+            if option == "burn" and self.ran == "burn":
                 self.plot_obj.plot_results_burn()
             elif option == "blowdown":
                 self.plot_obj.plot_results_blowdown()

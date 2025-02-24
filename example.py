@@ -17,5 +17,5 @@ engine = RocketEngine(feed, chamber, 0.9)
 simParams = SimulationParameters(envi, 0.002, 12)
 sim = SolveSimulation(engine, simParams)
 
-sim.run("blowdown")
-sim.plot("blowdown")
+sim.run("burn")
+sim.plot("burn")
