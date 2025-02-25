@@ -62,8 +62,7 @@ class RocketEngine(SimulationObject):
 
         self.chamber.grain.update_fuel_regression(self.time_step, self.injector.oxidizer_mass_flow)
 
-        self.chamber.update_chamber_pressure(self.time_step, self.environment, 
-                                             self.tank.fluid.name, self.chamber.grain.material.name)
+        self.chamber.update_chamber_pressure(self.time_step, self.environment)
 
         self.chamber.nozzle.update_exaust(self.chamber.gamma, self.chamber.pressure, 
                                           self.chamber.MW_comb_gas, self.chamber.combustion_temperature,

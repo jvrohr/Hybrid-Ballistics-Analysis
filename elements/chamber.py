@@ -22,44 +22,22 @@ class Chamber:
         self.MW_comb_gas = environment.MW_air
         self.combustion_temperature = environment.T
 
-        # Carregar dados
-        data = np.load("CEA_results.npz")
-        gamma = data["gamma"]
-        MW_comb_gas = data["MW_comb_gas"]
-        combustion_temperature = data["combustion_temperature"]
-        Pchamber_vec = data["Pchamber_vec"]
-        OF_vec = data["OF_vec"]
-
-        self.interp_temp = RegularGridInterpolator((Pchamber_vec, OF_vec), combustion_temperature)
-        self.interp_gamma = RegularGridInterpolator((Pchamber_vec, OF_vec), gamma)
-        self.interp_MW = RegularGridInterpolator((Pchamber_vec, OF_vec), MW_comb_gas)
-
 
     def get_chamber_internal_volume(self) -> float:
         return self.transversal_area * (self.post_combustor_length + self.pre_combustor_length) + \
             self.grain.length * self.grain.get_port_trans_area()
 
 
-    def update_chamber_pressure(self, time_step: float, environment: Environment,
-                                oxidizer_name: str, fuel_name: str):
-        cea_object = cea.CEA_Obj(oxName=oxidizer_name, fuelName=fuel_name)
-
+    def update_chamber_pressure(self, time_step: float, environment: Environment):
         before_pressure = 0
         gas_mass = self.gas_mass
         while(abs(before_pressure - self.pressure) > 0.1):
             gas_mass = self.gas_mass
             before_pressure = self.pressure
-            chamber_pressure_psi = convert_pa_2_psia(self.pressure)
 
-            # self.MW_comb_gas, self.gamma = cea_object.get_Chamber_MolWt_gamma(chamber_pressure_psi, 
-            #                                                                 self.grain.instant_OF) # [g/mol | -]
-            # self.combustion_temperature = cea_object.get_Tcomb(chamber_pressure_psi, self.grain.instant_OF)
-            ## converting from american units to SI
-            # self.combustion_temperature = rankine_2_kelvin(self.combustion_temperature)
-
-            self.MW_comb_gas = self.interp_MW([chamber_pressure_psi, self.grain.instant_OF])[0]
-            self.gamma = self.interp_gamma([chamber_pressure_psi, self.grain.instant_OF])[0]
-            self.combustion_temperature = self.interp_temp([chamber_pressure_psi, self.grain.instant_OF])[0]
+            self.MW_comb_gas = self.interp_MW([self.pressure, self.grain.instant_OF])[0]
+            self.gamma = self.interp_gamma([self.pressure, self.grain.instant_OF])[0]
+            self.combustion_temperature = self.interp_temp([self.pressure, self.grain.instant_OF])[0]
             
             self.MW_comb_gas = g_mol_2_kg(self.MW_comb_gas) # kg/mol
 
@@ -71,3 +49,46 @@ class Chamber:
                 self.combustion_temperature * density_comb_gas
 
         self.gas_mass = gas_mass
+
+
+    def create_tables_CEA(self, oxidizer_name: str, fuel_name: str, file_path: str):
+        cea_object = cea.CEA_Obj(oxName=oxidizer_name, fuelName=fuel_name)
+
+        OF_vec = np.linspace(0, 50, 1000)
+        Pchamber_vec = np.linspace(0, 7e6, 1000)
+        Pchamber_vec_imperial = [convert_pa_2_psia(P) for P in Pchamber_vec]
+
+        MW_comb_gas = []
+        gamma = []
+        combustion_temperature = []
+
+        for i, P in enumerate(Pchamber_vec_imperial):
+            MW_comb_gas.append([])
+            gamma.append([])
+            combustion_temperature.append([])
+            if(i % 100 == 0):
+                print(f"[INFO]: Done P = {Pchamber_vec[i]:.2} Pa")
+            for j, of in enumerate(OF_vec):
+                MW, g = cea_object.get_Chamber_MolWt_gamma(P, of) # [g/mol | -]
+                gamma[i].append(g)
+                MW_comb_gas[i].append(MW)
+                TR = cea_object.get_Tcomb(P, of)
+                TK = rankine_2_kelvin(TR)
+                combustion_temperature[i].append(TK)
+
+        np.savez(file_path, gamma=gamma, MW_comb_gas=MW_comb_gas, 
+                 combustion_temperature=combustion_temperature, OF_vec=OF_vec, Pchamber_vec=Pchamber_vec)
+    
+
+    def initialize_CEA_files(self, file_path: str):
+        # Loading data
+        data = np.load(file_path)
+        gamma = data["gamma"]
+        MW_comb_gas = data["MW_comb_gas"]
+        combustion_temperature = data["combustion_temperature"]
+        Pchamber_vec = data["Pchamber_vec"]
+        OF_vec = data["OF_vec"]
+
+        self.interp_gamma = RegularGridInterpolator((Pchamber_vec, OF_vec), gamma)
+        self.interp_MW = RegularGridInterpolator((Pchamber_vec, OF_vec), MW_comb_gas)
+        self.interp_temp = RegularGridInterpolator((Pchamber_vec, OF_vec), combustion_temperature)
