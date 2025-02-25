@@ -49,9 +49,18 @@ class Injector:
             self.oxidizer_mass_flow = 0
         else:
             if fluid.phase == Phase.GAS:
-                self.oxidizer_mass_flow = self.discharge_coefficient * self.total_injector_area * \
-                    np.sqrt(fluid.density * (upstream_pressure - downstream_pressure))
-                
+                gamma = fluid.get_specific_heats_ratio(fluid.phase)
+                critical_pressure = downstream_pressure / ((2 / (gamma + 1)) ** (gamma / (gamma - 1)))
+                if(upstream_pressure >= critical_pressure):
+                    self.oxidizer_mass_flow = self.discharge_coefficient * self.total_injector_area * \
+                        np.sqrt(gamma * fluid.density * upstream_pressure * \
+                                ((2 / (gamma + 1)) ** ((gamma + 1) / (gamma - 1))))
+                else:
+                    self.oxidizer_mass_flow = self.discharge_coefficient * self.total_injector_area * \
+                        fluid.density * np.sqrt(2 * fluid.get_CP(fluid.phase) * fluid.temperature * \
+                                                (((downstream_pressure / upstream_pressure) ** (2 / gamma)) - \
+                                                 ((downstream_pressure / upstream_pressure) ** ((gamma + 1) / gamma))))
+            
             elif fluid.phase == Phase.LIQUID:
                 deltaP = upstream_pressure - downstream_pressure
 

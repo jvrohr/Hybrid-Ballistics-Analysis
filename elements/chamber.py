@@ -49,18 +49,18 @@ class Chamber:
         while(abs(before_pressure - self.pressure) > 0.1):
             gas_mass = self.gas_mass
             before_pressure = self.pressure
-            # chamber_pressure_psi = convert_pa_2_psia(self.pressure)
+            chamber_pressure_psi = convert_pa_2_psia(self.pressure)
 
             # self.MW_comb_gas, self.gamma = cea_object.get_Chamber_MolWt_gamma(chamber_pressure_psi, 
             #                                                                 self.grain.instant_OF) # [g/mol | -]
             # self.combustion_temperature = cea_object.get_Tcomb(chamber_pressure_psi, self.grain.instant_OF)
-
-            self.MW_comb_gas = self.interp_MW([self.pressure, self.grain.instant_OF])[0]
-            self.gamma = self.interp_gamma([self.pressure, self.grain.instant_OF])[0]
-            self.combustion_temperature = self.interp_temp([self.pressure, self.grain.instant_OF])[0]
-            
             ## converting from american units to SI
-            self.combustion_temperature = rankine_2_kelvin(self.combustion_temperature)
+            # self.combustion_temperature = rankine_2_kelvin(self.combustion_temperature)
+
+            self.MW_comb_gas = self.interp_MW([chamber_pressure_psi, self.grain.instant_OF])[0]
+            self.gamma = self.interp_gamma([chamber_pressure_psi, self.grain.instant_OF])[0]
+            self.combustion_temperature = self.interp_temp([chamber_pressure_psi, self.grain.instant_OF])[0]
+            
             self.MW_comb_gas = g_mol_2_kg(self.MW_comb_gas) # kg/mol
 
             gas_mass_variation = (self.grain.instant_mass_generation_rate - self.nozzle.mass_flow_nozzle) * time_step
