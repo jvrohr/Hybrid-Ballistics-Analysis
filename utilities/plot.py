@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 class PlotResults:
     def __init__(self):
@@ -14,6 +15,9 @@ class PlotResults:
         self.results_dict["Oxidizer Mass Flow"] = []
         self.results_dict["O/F"] = []
         self.results_dict["Oxidizer Mass"] = []
+
+    def save_data(self):
+        np.savez("results_data.npz", **self.results_dict)
 
     def plot_results_burn(self):
         title = "Hybrid Motor Burn Result"

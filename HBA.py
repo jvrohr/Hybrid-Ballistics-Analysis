@@ -32,6 +32,8 @@ class SolveSimulation:
 
         self.check_CEA_file()
 
+    def save(self):
+        self.plot_obj.save_data()
 
     def run(self, option="burn"):
         self.plot_obj = PlotResults()
